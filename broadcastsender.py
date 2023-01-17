@@ -11,7 +11,7 @@ def broadcast(ip, port, broadcast_message):
 
 if __name__ == '__main__':
     # Broadcast address and port
-    BROADCAST_IP = "192.168.0.255"
+    BROADCAST_IP = "192.168.0.255" #needs to be reconfigured depending on network
     BROADCAST_PORT = 5973
 
     # Local host information
