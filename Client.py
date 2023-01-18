@@ -1,6 +1,7 @@
 import socket
 import multiprocessing
 import os
+from broadcastsender import broadcast
 #from subprocess import run
 
 def send_message(s_address, s_port):
@@ -35,3 +36,5 @@ if __name__ == '__main__':
         p = multiprocessing.Process(target=send_message, args=(server_address, server_port))
         p.start()
         p.join
+
+    broadcast("192.168.70.255",10001,"hi")

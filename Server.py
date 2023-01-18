@@ -3,8 +3,8 @@ A class for the Server module which will handle the chat application
 """
 import socket
 import time
-
-localIP     = "127.0.0.1"
+from broadcastlistener import broadcast_listener
+localIP     = "192.168.70.192"
 
 localPort   = 10001
 
@@ -64,8 +64,4 @@ class Server():
 
 if __name__ == "__main__":
 
-    while(True):
-        print("'''''''")
-        serve = Server()
-
-        serve.read_client()
+    broadcast_listener()

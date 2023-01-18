@@ -1,13 +1,13 @@
 import socket
 
 
-if __name__ == '__main__':
+def broadcast_listener():
     # Listening port
-    BROADCAST_PORT = 5973
+    BROADCAST_PORT = 10001
 
     # Local host information
     MY_HOST = socket.gethostname()
-    MY_IP = "192.168.0.150"
+    MY_IP = "192.168.70.192"
 
     # Create a UDP socket
     listen_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
