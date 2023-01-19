@@ -1,9 +1,9 @@
 import socket
 
 
-if __name__ == '__main__':
+def broadcast_listener():
     # Listening port
-    BROADCAST_PORT = 5973
+    BROADCAST_PORT = 10001
 
     # Local host information
     MY_HOST = socket.gethostname()
@@ -24,4 +24,5 @@ if __name__ == '__main__':
         if data:
             userInformation = data.decode().split(',')
             newUser = {'IP' : userInformation[0], 'userName' : userInformation[1], 'chatID' : userInformation[2]}
-            print(newUser['userName'], " with IP ", newUser['IP'], " wants to join Chat ", newUser['chatID'])
+            # print(newUser['userName'], " with IP ", newUser['IP'], " wants to join Chat ", newUser['chatID'])
+            return newUser
