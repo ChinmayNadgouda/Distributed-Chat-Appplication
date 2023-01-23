@@ -4,7 +4,7 @@ A class for the Server module which will handle the chat application
 import socket
 import time
 import sqlite3
-from broadcastlistener import broadcast_listener
+#from broadcastlistener import broadcast_listener
 
 localIP     = "192.168.0.150"
 
@@ -30,13 +30,15 @@ class Server():
     chatrooms_handled = []
 
     UDPServerSocket = None
-
+    #clientSocket = None
 
 
 
     def __init__(self):
         self.UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         self.UDPServerSocket.bind((localIP, localPort))
+        self.clientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self.clientSocket.bind((localIP, 5001))
 
 
 
@@ -64,7 +66,66 @@ class Server():
             self.UDPServerSocket.close()
             #pass
 
+    def broadcastlistener(self):
 
+        print("Listening to broadcast messages")
+        print(localIP)
+        while True:
+            data, server = self.UDPServerSocket.recvfrom(1024)
+            print(data)
+            if data:
+                userInformation = data.decode().split(',')
+                print(userInformation)
+                newUser = {'IP' : userInformation[0], 'userName' : userInformation[1]}
+                # print(newUser['userName'], " with IP ", newUser['IP'], " wants to join Chat ", newUser['chatID'])
+                return newUser
+
+
+    def send_Message(self, ip, message):
+        self.UDPServerSocket.sendto(message.encode(), (ip,5000))
+
+    def accept_login(self):
+        #sqlConnection
+        conn = sqlite3.connect('chatDB.db')
+        c = conn.cursor()
+        #create Server
+
+        ClientID = 0
+        #create client Table if not exist
+        c.execute("CREATE TABLE IF NOT EXISTS clients(clientID INTEGER PRIMARY KEY, userName TEXT, IPAdress TEXT)")
+        conn.commit()
+
+        #set clientID
+        c.execute("SELECT count(*) FROM clients")
+        conn.commit()
+        counter = c.fetchone()[0]
+        if counter > 0:
+            ClientID = counter
+
+        #write Client to Client Table
+        newUser = self.broadcastlistener()
+        c.execute("INSERT INTO clients (clientID, userName, IPAdress) VALUES (?, ?, ?)",(ClientID, newUser['userName'], newUser['IP'])) #grouplist
+        conn.commit()
+
+        c.execute('SELECT * FROM clients')
+        data = c.fetchall()
+        print(data)
+        for row in data:
+            print(row)
+
+        #send answer
+        #TODO fetch table of all available Chatrooms and send it to Client
+        self.send_Message(newUser["IP"], self.ip_address)      
+
+        #await chatID from Client
+        data, server = self.clientSocket.recvfrom(bufferSize)
+        print('Received message: ', data.decode())
+
+        #TODO check if chatID exists if not, create chat; send serverIP with chat to client
+        
+        c.close
+        conn.close()
+        print(newUser)    
 
 
 
@@ -72,24 +133,9 @@ class Server():
 
 
 if __name__ == "__main__":
-    #sqlConnection
-    conn = sqlite3.connect('chatDB.db')
-    c = conn.cursor()
-    
-    ClientID = 0
-    #create client Table once
-    c.execute("CREATE TABLE IF NOT EXISTS clients(clientID INTEGER PRIMARY KEY, userName TEXT, IPAdress TEXT, groupID INTEGER)")
-    conn.commit()
-    newUser = broadcast_listener()
-    c.execute("INSERT INTO clients (clientID, userName, IPAdress, groupID) VALUES (?, ?, ?, ?)",(ClientID, newUser['userName'], newUser['IP'], int(newUser['chatID'])))
-    conn.commit()
-    c.execute('SELECT * FROM clients')
-    data = c.fetchall()
-    print(data)
-    for row in data:
-        print(row)
+    #create Server
+    s = Server()
 
-
-    c.close
-    conn.close()
-    print(newUser)
+    #TODO allow multiple Clients concurrently
+    while True:
+        s.accept_login()

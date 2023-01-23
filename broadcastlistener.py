@@ -23,6 +23,6 @@ def broadcast_listener():
         data, addr = listen_socket.recvfrom(1024)
         if data:
             userInformation = data.decode().split(',')
-            newUser = {'IP' : userInformation[0], 'userName' : userInformation[1], 'chatID' : userInformation[2]}
+            newUser = {'IP' : userInformation[0], 'userName' : userInformation[1]}
             # print(newUser['userName'], " with IP ", newUser['IP'], " wants to join Chat ", newUser['chatID'])
             return newUser
