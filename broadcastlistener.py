@@ -1,19 +1,34 @@
 import socket
 
+import netifaces
+
+def get_broadcast_ip(interface):
+
+    addrs = netifaces.ifaddresses(interface)
+    return addrs[netifaces.AF_INET]
+
+    #return net.broadcast_address
+
 
 def broadcast_listener():
     # Listening port
-    BROADCAST_PORT = 10001
+    BROADCAST_PORT = 5973
 
     # Local host information
     MY_HOST = socket.gethostname()
-    MY_IP = "192.168.70.192"
+    MY_IP = socket.gethostbyname(MY_HOST)
+    print("Your Computer Name is:" + MY_HOST)
+    print("Your Computer IP Address is:" + MY_IP)
 
+
+    BroadCAST_IP = get_broadcast_ip("en0")
+    print(BroadCAST_IP,"---")
     # Create a UDP socket
     listen_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     # Set the socket to broadcast and enable reusing addresses
-    listen_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     listen_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    listen_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
     # Bind socket to address and port
     listen_socket.bind((MY_IP, BROADCAST_PORT))
 
@@ -21,6 +36,7 @@ def broadcast_listener():
     print(MY_IP)
     while True:
         data, addr = listen_socket.recvfrom(1024)
+        print(data)
         if data:
             userInformation = data.decode().split(',')
             newUser = {'IP' : userInformation[0], 'userName' : userInformation[1], 'chatID' : userInformation[2]}

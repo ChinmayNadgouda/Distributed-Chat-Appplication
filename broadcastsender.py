@@ -1,4 +1,12 @@
 import socket
+import netifaces
+
+def get_broadcast_ip(interface):
+
+    addrs = netifaces.ifaddresses(interface)
+    return addrs[netifaces.AF_INET][0]['broadcast']
+
+    #return net.broadcast_address
 
 
 def broadcast(ip, port, broadcast_message):
@@ -11,7 +19,7 @@ def broadcast(ip, port, broadcast_message):
 
 if __name__ == '__main__':
     # Broadcast address and port
-    BROADCAST_IP = "192.168.0.255" #needs to be reconfigured depending on network
+    BROADCAST_IP = get_broadcast_ip("en0")
     BROADCAST_PORT = 5973
 
     # Local host information
