@@ -3,7 +3,7 @@ import socket
 
 def broadcast_listener():
     # Listening port
-    BROADCAST_PORT = 10001
+    BROADCAST_PORT = 5042
 
     # Local host information
     MY_HOST = socket.gethostname()
@@ -22,7 +22,14 @@ def broadcast_listener():
     while True:
         data, addr = listen_socket.recvfrom(1024)
         if data:
-            userInformation = data.decode().split(',')
-            newUser = {'IP' : userInformation[0], 'userName' : userInformation[1]}
+            ipadress = data.decode()
+            print(ipadress)
+            listen_socket.sendto(str.encode("Whats up?"), (ipadress, 5042))
+            #userInformation = data.decode().split(',')
+            #newUser = {'IP' : userInformation[0], 'userName' : userInformation[1]}
             # print(newUser['userName'], " with IP ", newUser['IP'], " wants to join Chat ", newUser['chatID'])
-            return newUser
+            #return newUser
+            break
+
+if __name__ == "__main__":
+    broadcast_listener()

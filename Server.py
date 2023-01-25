@@ -5,12 +5,17 @@ import socket
 import time
 import sqlite3
 #from broadcastlistener import broadcast_listener
+#neu
+import select
 
 localIP     = "192.168.0.150"
+
+BROADCAST_IP = "192.168.0.255" #needs to be reconfigured depending on network
 
 localPort   = 10001
 
 bufferSize  = 1024
+
 
 class Server():
     #to determine if the leader has been elected
@@ -30,7 +35,8 @@ class Server():
     chatrooms_handled = []
 
     UDPServerSocket = None
-    #clientSocket = None
+    clientSocket = None
+    broadcast_socket = None
 
 
 
@@ -127,6 +133,24 @@ class Server():
         conn.close()
         print(newUser)    
 
+    def broadcast(self, ip, port, broadcast_message):
+        # Create a UDP socket
+        self.broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Send message on broadcast address
+        self.broadcast_socket.sendto(str.encode(broadcast_message), (ip, port))
+        #broadcast_socket.close()
+
+
+    def join_Network(self):
+        self.broadcast(BROADCAST_IP, 5042, self.ip_address)
+        self.broadcast_socket.setblocking(0)
+        ready = select.select([self.broadcast_socket],[],[], 3)
+        if ready[0]:
+            data = self.broadcast_socket.recvfrom(4096)
+            print("I got data: " + data)
+        else:
+            print("I AM LEADER!")
+            self.is_leader = True
 
 
 
@@ -136,6 +160,8 @@ if __name__ == "__main__":
     #create Server
     s = Server()
 
+    s.join_Network()
     #TODO allow multiple Clients concurrently
-    while True:
-        s.accept_login()
+    if s.is_leader == True:
+        while True:
+            s.accept_login()
