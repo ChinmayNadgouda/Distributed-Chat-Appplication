@@ -88,7 +88,7 @@ class Server():
         #pass
 
     def connect_to_db(self,db_name):
-        connection = sqlite3.connect("./db/"+db_name)
+        connection = sqlite3.connect(db_name)
         return connection
 
     def create_chatroom(self,chatroom_id):
