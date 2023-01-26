@@ -1,18 +1,19 @@
 """
 A class for the Server module which will handle the chat application
 """
+import queue
 import sqlite3
 import socket
 import time
 from broadcastlistener import broadcast_listener
 import multiprocessing
-localIP     = "192.168.188.22"
+localIP     = "192.168.64.2"
 
 localPort   = 5553
 
 bufferSize  = 1024
 import datetime
-
+proc_queue = multiprocessing.Queue(maxsize=100)
 class Server():
     #to determine if the leader has been elected
     is_leader = False
@@ -60,16 +61,16 @@ class Server():
             print(clientIP)
 
             UDPServerSocket.close()
-
-            message_from_client = bytesAddressPair[0].decode('utf-8')
-            # print(type(message_from_client),"tt")
-            client_ip = bytesAddressPair[1][0]
-            print(client_ip)
-            data,port = self.parse_client_message(message_from_client, client_ip)
-            # print(data)
-            #print(port)
-            self.write_to_client(client_ip, int(port), data)
-            return [address,message]
+            proc_queue.put([message,address])
+            # message_from_client = bytesAddressPair[0].decode('utf-8')
+            # # print(type(message_from_client),"tt")
+            # client_ip = bytesAddressPair[1][0]
+            # print(client_ip)
+            # data,port = self.parse_client_message(message_from_client, client_ip)
+            # # print(data)
+            # #print(port)
+            # self.write_to_client(client_ip, int(port), data)
+            #return [address,message]
         except socket.timeout:
             self.read_client(client_port)
 
@@ -165,11 +166,21 @@ class Server():
     def write_to_chatroom(self,port):
         while True:
             self.read_client(port)
-
+            # while(proc_queue.qsize()>0):
+            bytesAddressPair = proc_queue.get()
+            message_from_client = bytesAddressPair[0].decode('utf-8')
+            # print(type(message_from_client),"tt")
+            client_ip = bytesAddressPair[1][0]
+            print(client_ip)
+            data, port = self.parse_client_message(message_from_client, client_ip)
+            # print(data)
+            # print(port)
+            self.write_to_client(client_ip, int(port), data)
 
 if __name__ == "__main__":
 
     serve = Server()
+
     p = multiprocessing.Process(target=serve.write_to_chatroom,args=(5555,))
     # p_heartbeat = multiprocessing.Process(target=serve.heartbeats,args=())
     # p_heartbeat.start()
