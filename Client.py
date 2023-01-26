@@ -5,6 +5,8 @@ import time
 from broadcastsender import broadcast
 #from subprocess import run
 
+local_ip = "192.168.188.22"
+server_ip = "192.168.188.22"
 def chatroom_input(client_id,chatroom_id):
     while(True):
         message_to_send = input("Give your input:")
@@ -12,31 +14,40 @@ def chatroom_input(client_id,chatroom_id):
             return True
         else:
 
-            send_message("127.0.0.1", 5553, client_id+",send_msg,"+chatroom_id+","+message_to_send)
+            send_message(server_ip, 5553, client_id+",send_msg,"+chatroom_id+","+message_to_send)
 
 def chatroom_output(state,client_id,chatroom_id=False):
     if state=="create" and not (chatroom_id):
-        send_message("127.0.0.1", 5553, client_id + ",get_msg_c")
+        send_message(server_ip, 5553, client_id + ",get_msg_c")
         chatroom_id = recieve_message()
         while (True):
             time.sleep(1)
-            send_message("127.0.0.1", 5553, client_id+",get_msg,"+chatroom_id.decode('utf-8'))
+            send_message(server_ip, 5553, client_id+",get_msg,"+chatroom_id.decode('utf-8'))
             message_recvd = recieve_message()
             print(message_recvd)
     if state=="join" and chatroom_id:
+        previous_message_recv = ""
         previous_messages = fetch_previous_messages(chatroom_id,client_id)
-        for message in previous_messages:
+
+        for message in previous_messages.decode('utf-8').split('\n'):
             print(message)
         #keep poling for new messages
         while(True):
-            time.sleep(1)
-            send_message("127.0.0.1", 5553, client_id+",get_msg,"+chatroom_id)
+            time.sleep(0.5)
+            send_message(server_ip, 5553, client_id+",get_msg,"+chatroom_id)
             message_recvd = recieve_message()
+            #print(previous_message_recv, "PPP")
+            #print(message_recvd, "RRR")
+            if(previous_message_recv == message_recvd):
+                continue
+
+            previous_message_recv = message_recvd
+            #print(previous_message_recv, "PPP")
             print(message_recvd)
 
 def fetch_previous_messages(chatroom_id,client_id):
     while(True):
-        send_message("127.0.0.1",5553,client_id+",fetch_msg,"+chatroom_id)
+        send_message(server_ip,5553,client_id+",fetch_msg,"+chatroom_id)
         message_recieved = recieve_message()
         if message_recieved:
             return message_recieved
@@ -50,26 +61,29 @@ def send_message(s_address, s_port, message_to_b_sent):
         # # message = run("python q2.py",capture_output=True)
 
         # Send data
-        client_socket.sendto(str.encode(message_to_b_sent), (s_address, s_port))
-        print('Sent to server: ', message_to_b_sent)
+        client_socket.sendto(str.encode(message_to_b_sent+",5565"), (s_address, s_port))
+        #print('Sent to server: ', message_to_b_sent)
     finally:
         client_socket.close()
-        print('Socket closed')
+        #print('Socket closed')
 
 def recieve_message():
     try:
         # Receive response
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        client_socket.bind(("127.0.0.1",5554))
-        print('Waiting for response...')
+        client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        client_socket.settimeout(1)
+        client_socket.bind((local_ip,5565))
+        #print('Waiting for response...')
         data, server = client_socket.recvfrom(1024)
-        print('Received message: ', data.decode())
+        #print('Received message: ', data.decode())
 
         return data
-
+    except socket.timeout:
+        recieve_message()
     finally:
         client_socket.close()
-        print('Socket closed')
+        #print('Socket closed')
 
 #def 
 def after_login():
