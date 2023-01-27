@@ -28,7 +28,7 @@ class Server():
     #server id
     server_id = "12012023_1919"
     #ip and id of each server in the group
-    group_view = {}
+    group_view = []
     #ip of clients assigned to the server
     clients_handled = []
     #chatroom ids handled by a server
@@ -163,22 +163,38 @@ class Server():
         if ready[0]:
             data, server = self.LeaderServerSocket.recvfrom(4096)
             self.LeaderServerSocket.close()
-            print("I got data: " + data.decode())
-            #TODO Receive & Update Groupview
+            self.group_view = data.decode().split(';')
+            print("I got data: " + self.group_view)
+            self.leader = server
+            self.electLeader()
+
+
+
         else:
             print("I AM LEADER!")
             self.is_leader = True
+            self.group_view.insert({"serverID": 0, "IP" : self.ip_address})
         self.LeaderServerSocket.close()
 
 
     def accept_Join(self):
         self.LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         self.LeaderServerSocket.bind((localIP, 5043))
-        newServer = self.broadcastlistener(self.LeaderServerSocket)
-        #TODO Update Groupview, send Groupview to ServerID
+        newServerIP = self.broadcastlistener(self.LeaderServerSocket)
+        self.LeaderServerSocket.close()
+        newServer = {"serverID": len(self.group_view),"IP" : newServerIP}
         print(newServer)
+        self.group_view.insert(newServer)
+        #TODO encode group_view with JSON or pickle
+        message = ';'.join(self.group_view)
+        self.LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        for i in self.group_view:
+            self.LeaderServerSocket.sendto(message.encode(), (i["IP"],5043))
         self.LeaderServerSocket.close()
 
+    def electLeader(self):
+        #TODO implement leader Election
+        self.is_leader = False
 
 
 
@@ -190,4 +206,4 @@ if __name__ == "__main__":
     #TODO allow multiple Clients concurrently
     if s.is_leader == True:
         while True:
-            s.accept_Join()
+            s.accept_login()
