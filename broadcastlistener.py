@@ -24,7 +24,7 @@ def broadcast_listener():
         if data:
             ipadress = data.decode()
             print(ipadress)
-            listen_socket.sendto(str.encode("Whats up?"), (ipadress, 5042))
+            listen_socket.sendto(str.encode("Whats up?"), (ipadress, 5043))
             #userInformation = data.decode().split(',')
             #newUser = {'IP' : userInformation[0], 'userName' : userInformation[1]}
             # print(newUser['userName'], " with IP ", newUser['IP'], " wants to join Chat ", newUser['chatID'])

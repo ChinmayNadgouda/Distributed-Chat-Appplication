@@ -37,14 +37,16 @@ class Server():
     UDPServerSocket = None
     clientSocket = None
     broadcast_socket = None
+    LeaderServerSocket = None
 
 
 
-    def __init__(self):
-        self.UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        self.UDPServerSocket.bind((localIP, localPort))
-        self.clientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        self.clientSocket.bind((localIP, 5001))
+    #def __init__(self):
+        #self.UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        #self.UDPServerSocket.bind((localIP, localPort))
+        #self.clientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        #self.clientSocket.bind((localIP, 5001))
+        #self.LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 
 
 
@@ -72,23 +74,25 @@ class Server():
             self.UDPServerSocket.close()
             #pass
 
-    def broadcastlistener(self):
+    def broadcastlistener(self, socket):
 
         print("Listening to broadcast messages")
         print(localIP)
         while True:
-            data, server = self.UDPServerSocket.recvfrom(1024)
+            data, server = socket.recvfrom(1024)
             print(data)
             if data:
-                userInformation = data.decode().split(',')
-                print(userInformation)
-                newUser = {'IP' : userInformation[0], 'userName' : userInformation[1]}
+                #userInformation = data.decode().split(',')
+                #print(userInformation)
+                #newUser = {'IP' : userInformation[0], 'userName' : userInformation[1]}
                 # print(newUser['userName'], " with IP ", newUser['IP'], " wants to join Chat ", newUser['chatID'])
-                return newUser
+                return data
 
 
     def send_Message(self, ip, message):
+        self.UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         self.UDPServerSocket.sendto(message.encode(), (ip,5000))
+        self.UDPServerSocket.close()
 
     def accept_login(self):
         #sqlConnection
@@ -109,7 +113,13 @@ class Server():
             ClientID = counter
 
         #write Client to Client Table
-        newUser = self.broadcastlistener()
+        self.UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self.UDPServerSocket.bind((localIP, localPort))
+        data = self.broadcastlistener(self.UDPServerSocket)
+        self.UDPServerSocket.close()
+        userInformation = data.decode().split(',')
+        print(userInformation)
+        newUser = {'IP' : userInformation[0], 'userName' : userInformation[1]}
         c.execute("INSERT INTO clients (clientID, userName, IPAdress) VALUES (?, ?, ?)",(ClientID, newUser['userName'], newUser['IP'])) #grouplist
         conn.commit()
 
@@ -124,7 +134,10 @@ class Server():
         self.send_Message(newUser["IP"], self.ip_address)      
 
         #await chatID from Client
+        self.clientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self.clientSocket.bind((localIP, 5001))
         data, server = self.clientSocket.recvfrom(bufferSize)
+        self.clientSocket.close()
         print('Received message: ', data.decode())
 
         #TODO check if chatID exists if not, create chat; send serverIP with chat to client
@@ -138,20 +151,33 @@ class Server():
         self.broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # Send message on broadcast address
         self.broadcast_socket.sendto(str.encode(broadcast_message), (ip, port))
-        #broadcast_socket.close()
+        self.broadcast_socket.close()
 
 
     def join_Network(self):
-        self.broadcast(BROADCAST_IP, 5042, self.ip_address)
-        self.broadcast_socket.setblocking(0)
-        ready = select.select([self.broadcast_socket],[],[], 3)
+        self.broadcast(BROADCAST_IP, 5043, self.ip_address)
+        self.LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self.LeaderServerSocket.bind((localIP, 5043))
+        self.LeaderServerSocket.setblocking(0)
+        ready = select.select([self.LeaderServerSocket],[],[], 3)
         if ready[0]:
-            data = self.broadcast_socket.recvfrom(4096)
-            print("I got data: " + data)
+            data, server = self.LeaderServerSocket.recvfrom(4096)
+            self.LeaderServerSocket.close()
+            print("I got data: " + data.decode())
+            #TODO Receive & Update Groupview
         else:
             print("I AM LEADER!")
             self.is_leader = True
+        self.LeaderServerSocket.close()
 
+
+    def accept_Join(self):
+        self.LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self.LeaderServerSocket.bind((localIP, 5043))
+        newServer = self.broadcastlistener(self.LeaderServerSocket)
+        #TODO Update Groupview, send Groupview to ServerID
+        print(newServer)
+        self.LeaderServerSocket.close()
 
 
 
@@ -164,4 +190,4 @@ if __name__ == "__main__":
     #TODO allow multiple Clients concurrently
     if s.is_leader == True:
         while True:
-            s.accept_login()
+            s.accept_Join()
