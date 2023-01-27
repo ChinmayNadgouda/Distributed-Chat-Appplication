@@ -5,12 +5,12 @@ import queue
 import sqlite3
 import socket
 import time
-from broadcastlistener import broadcast_listener
+#from broadcastlistener import broadcast_listener
 import multiprocessing
 from multiprocessing.pool import ThreadPool
 import threading
 localIP     = "192.168.188.22"
-leader_ip = "1192.168.188.22"
+leader_ip = "192.168.188.22"
 localPort   = 5553
 local_server_port = 4443
 
@@ -57,7 +57,7 @@ class Server():
             if heatbeat_server:
                 UDPServerSocket.settimeout(15)
             UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+            #UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
             UDPServerSocket.bind((localIP, port))
             #keep listening and get the message from clinet
             bytesAddressPair = UDPServerSocket.recvfrom(bufferSize)
