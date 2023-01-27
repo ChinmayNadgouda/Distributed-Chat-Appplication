@@ -9,15 +9,16 @@ from broadcastlistener import broadcast_listener
 import multiprocessing
 import threading
 localIP     = "192.168.188.22"
-
+leader_ip = "1192.168.188.22"
 localPort   = 5553
+local_server_port = 4443
 
 bufferSize  = 1024
 import datetime
 proc_queue = multiprocessing.Queue(maxsize=100)
 class Server():
     #to determine if the leader has been elected
-    is_leader = False
+    is_leader = True
     me_leader = False # not necessary
     #ip/id of the leader selected
     leader = ""
@@ -28,9 +29,11 @@ class Server():
 
     #ip and id of each server in the group
     group_view = {}
-    #ip of clients assigned to the server
+    #ip of clients assigned to the server, is a set  {"127.0.0.1:5343"}  "ip_addr:port"
     clients_handled = []
-
+    #ip of the whole server group, is a set {"127.0.0.1:1232:0"}  "ip_addr:port:heartbeatmisscount"
+    server_list = ["192.168.188.22:4443","192.168.188.28:4443","192.168.188.29:4443"]
+    server_heatbeat_list = {}
     previous_message = ""
 
 
@@ -44,14 +47,15 @@ class Server():
 
 
     #get the messaged passed from clients ( have a message queue )
-    def read_client(self):
+    def read_client(self,port,heartbeat=False):
         try:
             UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
             #UDPServerSocket.setblocking(0)
-            #UDPServerSocket.settimeout(1)
+            if heartbeat:
+               UDPServerSocket.settimeout(65)
             UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-            UDPServerSocket.bind((localIP, localPort))
+            UDPServerSocket.bind((localIP, port))
             #keep listening and get the message from clinet
             bytesAddressPair = UDPServerSocket.recvfrom(bufferSize)
 
@@ -68,22 +72,22 @@ class Server():
             UDPServerSocket.close()
 
             return [address,message]
+        except socket.timeout:
+            return False
         except Exception as e:
             print('Recving error: ',e)
 
-    def write_to_client(self,server_message):
+    def write_to_client(self,server_message,client_ip,client_port):
         # Sending a reply to client
         UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         #UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         #UDPServerSocket.bind((client_ip, client_port))
         bytesToSend = str.encode(server_message)
-        for client in self.clients_handled:
-            UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-            client_ip = client[0]
-            client_port = client[1]
-            UDPServerSocket.sendto(bytesToSend, (client_ip,client_port))
-            print("sent {} to client {} {}".format(bytesToSend,client_ip,client_port))
-            UDPServerSocket.close()
+
+        UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        UDPServerSocket.sendto(bytesToSend, (client_ip,client_port))
+        print("sent {} to client {} {}".format(bytesToSend,client_ip,client_port))
+        UDPServerSocket.close()
         return True
         #pass
 
@@ -103,7 +107,7 @@ class Server():
 
     def write_to_chatroom(self):
         while True:
-            bytesAddressPair = self.read_client()
+            bytesAddressPair = self.read_client(localPort)
 
             print(bytesAddressPair)
             message_from_client = bytesAddressPair[1].decode('utf-8')
@@ -112,19 +116,61 @@ class Server():
             print(client_ip)
             client_id, data, chatroom_id, message, port = self.parse_client_message(message_from_client)
             print('D',data)
-            self.clients_handled.append([client_ip,int(port)])
-            thread = threading.Thread(target=self.write_to_client,args=(message,))
-            thread.start()
-            thread.join()
+            self.clients_handled.append(client_ip+":"+port)
+            clients_set = set(self.clients_handled)
+            for client in clients_set:
+                client_addr = client.split(":")
+                client_ip = client_addr[0]
+                client_port = int(client_addr[1])
+                thread = threading.Thread(target=self.write_to_client,args=(message,client_ip,client_port,))
+                thread.start()
+                thread.join()
+    def heart_beat_recving(self):
+        while True:
+            leader_heartbeat = self.read_client(local_server_port,heartbeat=True)
+            if leader_heartbeat == b'heartbeat':
+                thread = threading.Thread(target=self.write_to_client, args=('heartbeat_recvd', leader_ip, local_server_port,))
+                thread.start()
+                thread.join()
+            else:
+                print('Leader is dead,start election')
+    def heart_beating(self):
+        while True:
+            time.sleep(60) #heartbeats after 60 seconds
+            for server in self.server_list:
+
+                server_addr = server.split(":")
+                server_ip = server_addr[0]
+                server_port = int(server_addr[1])
+                thread = threading.Thread(target=self.write_to_client,args=("heartbeat",server_ip,server_port,))
+                thread.start()
+                thread.join()
+
+                listen_heartbeat = self.read_client(local_server_port)
+                if listen_heartbeat == b'heartbeat_recvd':
+                    print("Server {} is alive:".format(server_ip))
+                    self.server_heatbeat_list[server_ip] = 0
+                else:
+                    if self.server_heatbeat_list[server_ip] > 3:
+                        print("Server {} is dead:".format(server_ip))
+                        self.server_heatbeat_list[server_ip] = 0
+                    self.server_heatbeat_list[server_ip] = self.server_heatbeat_list[server_ip] + 1
+
+    def heartbeat_mechanism(self):
+        if self.is_leader:
+            serve.heart_beating()
+        else:
+            serve.heart_beat_recving()
 
 if __name__ == "__main__":
-
+    Leader = True
     serve = Server()
+    #group_view = broadcast()
+    #serve.server_list = group_view
 
-    serve.write_to_chatroom()
     # p_heartbeat = multiprocessing.Process(target=serve.heartbeats,args=())
     # p_heartbeat.start()
-
+    serve.write_to_chatroom()
     #p_heartbeat.join()
 
     #broadcast_listener()
