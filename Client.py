@@ -17,7 +17,8 @@ def chatroom_input(client_id,chatroom_id):
 
             send_message(server_ip, 5553, client_id+",send_msg,"+chatroom_id+","+message_to_send)
 
-def chatroom_output(state,client_id,chatroom_id=False):
+def chatroom_output():
+    while True:
         data = recieve_message()
         print(data)
 
@@ -41,15 +42,14 @@ def recieve_message():
         # Receive response
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-        client_socket.settimeout(1)
+
         client_socket.bind((local_ip,5565))
         #print('Waiting for response...')
         data, server = client_socket.recvfrom(1024)
         #print('Received message: ', data.decode())
 
         return data
-    except socket.timeout:
-        recieve_message()
+
     finally:
         client_socket.close()
         #print('Socket closed')
