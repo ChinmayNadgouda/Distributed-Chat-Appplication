@@ -7,6 +7,7 @@ import socket
 import time
 from broadcastlistener import broadcast_listener
 import multiprocessing
+from multiprocessing.pool import ThreadPool
 import threading
 localIP     = "192.168.188.22"
 leader_ip = "1192.168.188.22"
@@ -47,12 +48,14 @@ class Server():
 
 
     #get the messaged passed from clients ( have a message queue )
-    def read_client(self,port,heartbeat=False):
+    def read_client(self,port,heartbeat_leader=False,heatbeat_server=False):
         try:
             UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
             #UDPServerSocket.setblocking(0)
-            if heartbeat:
-               UDPServerSocket.settimeout(65)
+            if heartbeat_leader:
+               UDPServerSocket.settimeout(1)
+            if heatbeat_server:
+                UDPServerSocket.settimeout(15)
             UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
             UDPServerSocket.bind((localIP, port))
@@ -127,16 +130,17 @@ class Server():
                 thread.join()
     def heart_beat_recving(self):
         while True:
-            leader_heartbeat = self.read_client(local_server_port,heartbeat=True)
-            if leader_heartbeat == b'heartbeat':
-                thread = threading.Thread(target=self.write_to_client, args=('heartbeat_recvd', leader_ip, local_server_port,))
-                thread.start()
-                thread.join()
+            leader_heartbeat = self.read_client(local_server_port,heartbeat_leader=False,heatbeat_server=True)
+            if leader_heartbeat:
+                if leader_heartbeat[1] == b'heartbeat':
+                    thread = threading.Thread(target=self.write_to_client, args=('heartbeat_recvd', leader_ip, local_server_port,))
+                    thread.start()
+                    thread.join()
             else:
                 print('Leader is dead,start election')
     def heart_beating(self):
         while True:
-            time.sleep(60) #heartbeats after 60 seconds
+            time.sleep(10) #heartbeats after 60 seconds
             for server in self.server_list:
 
                 server_addr = server.split(":")
@@ -144,20 +148,35 @@ class Server():
                 server_port = int(server_addr[1])
                 thread = threading.Thread(target=self.write_to_client,args=("heartbeat",server_ip,server_port,))
                 thread.start()
-                thread.join()
 
-                listen_heartbeat = self.read_client(local_server_port)
-                if listen_heartbeat == b'heartbeat_recvd':
-                    print("Server {} is alive:".format(server_ip))
-                    self.server_heatbeat_list[server_ip] = 0
+                pool = ThreadPool(processes=1)
+
+                async_result = pool.apply_async(self.read_client, (local_server_port,True,False))  # tuple of args for foo
+
+                # do some other stuff in the main process
+
+                listen_heartbeat = async_result.get()
+
+                if listen_heartbeat:
+                    if listen_heartbeat[1] == b'heartbeat_recvd':
+                        print("Server {} is alive:".format(server_ip))
+                        self.server_heatbeat_list[server_ip] = 0
                 else:
                     if self.server_heatbeat_list[server_ip] > 3:
                         print("Server {} is dead:".format(server_ip))
                         self.server_heatbeat_list[server_ip] = 0
+                        #inform all other servers
+                        #redirect client to new server
                     self.server_heatbeat_list[server_ip] = self.server_heatbeat_list[server_ip] + 1
 
-    def heartbeat_mechanism(self):
+    def heartbeat_mechanism(self,serve):
+
         if self.is_leader:
+            for server in self.server_list:
+
+                server_addr = server.split(":")
+                server_ip = server_addr[0]
+                self.server_heatbeat_list[server_ip] = 0
             serve.heart_beating()
         else:
             serve.heart_beat_recving()
@@ -168,9 +187,12 @@ if __name__ == "__main__":
     #group_view = broadcast()
     #serve.server_list = group_view
 
-    # p_heartbeat = multiprocessing.Process(target=serve.heartbeats,args=())
-    # p_heartbeat.start()
-    serve.write_to_chatroom()
+    p_heartbeat = multiprocessing.Process(target=serve.heartbeat_mechanism,args=(serve,))
+    p_heartbeat.start()
+    #serve.heartbeat_mechanism()
+    p_chat = multiprocessing.Process(target=serve.write_to_chatroom, args=())
+    p_chat.start()
+    #serve.write_to_chatroom()
     #p_heartbeat.join()
 
     #broadcast_listener()
