@@ -7,6 +7,7 @@ import sqlite3
 #from broadcastlistener import broadcast_listener
 #neu
 import select
+import pickle
 
 localIP     = "192.168.0.150"
 
@@ -163,7 +164,7 @@ class Server():
         if ready[0]:
             data, server = self.LeaderServerSocket.recvfrom(4096)
             self.LeaderServerSocket.close()
-            self.group_view = data.decode().split(';')
+            self.group_view = pickle.loads(data)
             print("I got data: " + self.group_view)
             self.leader = server
             self.electLeader()
@@ -185,11 +186,10 @@ class Server():
         newServer = {"serverID": len(self.group_view),"IP" : newServerIP}
         print(newServer)
         self.group_view.insert(newServer)
-        #TODO encode group_view with JSON or pickle
-        message = ';'.join(self.group_view)
+        message = pickle.dumps(self.group_view)
         self.LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         for i in self.group_view:
-            self.LeaderServerSocket.sendto(message.encode(), (i["IP"],5043))
+            self.LeaderServerSocket.sendto(message, (i["IP"],5043))
         self.LeaderServerSocket.close()
 
     def electLeader(self):
