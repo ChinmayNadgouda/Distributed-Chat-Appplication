@@ -11,7 +11,8 @@ from multiprocessing.pool import ThreadPool
 import threading
 localIP     = "192.168.188.22"
 leader_ip = "192.168.188.22"
-localPort   = 5553
+localPort_in   = 5553
+localPort_out = 5554
 local_server_port = 4443
 
 bufferSize  = 1024
@@ -58,7 +59,7 @@ class Server():
             if heatbeat_server:
                 UDPServerSocket.settimeout(15)
             UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            #UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+            UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
             UDPServerSocket.bind((localIP, port))
             #keep listening and get the message from clinet
             bytesAddressPair = UDPServerSocket.recvfrom(bufferSize)
@@ -108,14 +109,14 @@ class Server():
         UDPServerSocket.close()
         pool = ThreadPool(processes=1)
 
-        async_result = pool.apply_async(self.read_client, (client_port, True, False))  # tuple of args for foo
+        async_result = pool.apply_async(self.read_client, (localPort_out, True, False))  # tuple of args for foo
 
         # do some other stuff in the main process
 
         ack_thread = async_result.get()
         if ack_thread:
             if ack_thread[1] == b'recvd':
-                self.ack_counter[localPort] = self.ack_counter[localPort] + 1
+                self.ack_counter[localPort_in] = self.ack_counter[localPort_in] + 1
         return True
         # pass
 
@@ -143,32 +144,33 @@ class Server():
         connection.close()
     def write_to_chatroom(self):
         while True:
-            bytesAddressPair = self.read_client(localPort)
+            bytesAddressPair = self.read_client(localPort_in)
 
             print(bytesAddressPair)
             message_from_client = bytesAddressPair[1].decode('utf-8')
             # print(type(message_from_client),"tt")
             client_ip = bytesAddressPair[0][0]
             print(client_ip)
-            client_id, data, chatroom_id, message, port = self.parse_client_message(message_from_client)
+            client_id, data, chatroom_id, message, port, inport = self.parse_client_message(message_from_client)
             print('D',data)
-            self.clients_handled.append(client_ip+":"+port)
+            self.clients_handled.append(client_ip+":"+port+":"+inport)
             clients_set = set(self.clients_handled)
-            self.ack_counter[localPort] = 0
+            self.ack_counter[localPort_in] = 0
             for client in clients_set:
                 client_addr = client.split(":")
                 client_ip = client_addr[0]
                 client_port = int(client_addr[1])
+                client_port_ack = int(client_addr[2])
                 thread = threading.Thread(target=self.write_to_client_with_ack,args=(message,client_ip,client_port,))
                 thread.start()
                 thread.join()
 
-            if self.ack_counter[localPort] == len(clients_set):
-                thread = threading.Thread(target=self.write_to_client, args=("sent", client_ip, client_port,))
+            if self.ack_counter[localPort_in] == len(clients_set):
+                thread = threading.Thread(target=self.write_to_client, args=("sent", client_ip, client_port_ack,))
                 thread.start()
                 thread.join()
             else:
-                thread = threading.Thread(target=self.write_to_client, args=("please re-send", client_ip, client_port,))
+                thread = threading.Thread(target=self.write_to_client, args=("please re-send", client_ip, client_port_ack,))
                 thread.start()
                 thread.join()
     def heart_beat_recving(self):
