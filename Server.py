@@ -146,28 +146,30 @@ class Server():
                 server_addr = server.split(":")
                 server_ip = server_addr[0]
                 server_port = int(server_addr[1])
-                thread = threading.Thread(target=self.write_to_client,args=("heartbeat",server_ip,server_port,))
-                thread.start()
+                if server_ip != localIP:
+                    thread = threading.Thread(target=self.write_to_client,args=("heartbeat",server_ip,server_port,))
+                    thread.start()
 
-                pool = ThreadPool(processes=1)
+                    pool = ThreadPool(processes=1)
 
-                async_result = pool.apply_async(self.read_client, (local_server_port,True,False))  # tuple of args for foo
+                    async_result = pool.apply_async(self.read_client, (local_server_port,True,False))  # tuple of args for foo
 
-                # do some other stuff in the main process
+                    # do some other stuff in the main process
 
-                listen_heartbeat = async_result.get()
+                    listen_heartbeat = async_result.get()
 
-                if listen_heartbeat:
-                    if listen_heartbeat[1] == b'heartbeat_recvd':
-                        print("Server {} is alive:".format(server_ip))
-                        self.server_heatbeat_list[server_ip] = 0
-                else:
-                    if self.server_heatbeat_list[server_ip] > 3:
-                        print("Server {} is dead:".format(server_ip))
-                        self.server_heatbeat_list[server_ip] = 0
-                        #inform all other servers
-                        #redirect client to new server
-                    self.server_heatbeat_list[server_ip] = self.server_heatbeat_list[server_ip] + 1
+
+                    if listen_heartbeat:
+                        if listen_heartbeat[1] == b'heartbeat_recvd':
+                            print("Server {} is alive:".format(server_ip))
+                            self.server_heatbeat_list[server_ip] = 0
+                    else:
+                        if self.server_heatbeat_list[server_ip] > 3:
+                            print("Server {} is dead:".format(server_ip))
+                            self.server_heatbeat_list[server_ip] = 0
+                            #inform all other servers
+                            #redirect client to new server
+                        self.server_heatbeat_list[server_ip] = self.server_heatbeat_list[server_ip] + 1
 
     def heartbeat_mechanism(self,serve):
 
