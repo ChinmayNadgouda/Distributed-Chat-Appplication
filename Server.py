@@ -120,7 +120,7 @@ class Server():
         return True
         #pass
 
-    def write_to_client_with_ack(self,server_message,client_ip,client_port):
+    def write_to_client_with_ack(self,server_message,client_ip,client_port,from_client_ip):
         # Sending a reply to client
         UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         # UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -153,7 +153,7 @@ class Server():
         if ack_thread:
             ackkkk = ack_thread[1].split(b',')
             if ackkkk[1] == b'recvd':
-                self.ack_counter[localPort_in] = self.ack_counter[localPort_in] + 1
+                self.ack_counter[from_client_ip][localPort_in] = self.ack_counter[from_client_ip][localPort_in] + 1
         return True
         # pass
 
@@ -182,10 +182,12 @@ class Server():
         connection.close()
     def write_to_chatroom(self):
         while True:
-            bytesAddressPair = self.read_client(localPort_in)
+            bytesAddressPair = self.read_client(localPort_in)    #localPort_in for each chatroom
 
             print(bytesAddressPair)
             message_from_client = bytesAddressPair[1].decode('utf-8')
+
+            #callvector_check
             # print(type(message_from_client),"tt")
             from_client_ip = bytesAddressPair[0][0]
             print(from_client_ip)
@@ -193,19 +195,19 @@ class Server():
             print('D',data)
             self.clients_handled.append(from_client_ip+":"+from_port+":"+from_inport)
             clients_set = set(self.clients_handled)
-
-            self.ack_counter[localPort_in] = 0
-            print("ACKcount_b2", self.ack_counter[localPort_in])
+            self.ack_counter[from_client_ip] = {}
+            self.ack_counter[from_client_ip][localPort_in] = 0
+            print("ACKcount_b2", self.ack_counter[from_client_ip][localPort_in])
             for client in clients_set:
                 client_addr = client.split(":")
                 to_client_ip = client_addr[0]
                 to_client_port = int(client_addr[1])
                 to_client_port_ack = int(client_addr[2])  #same as from_inport
-                thread = threading.Thread(target=self.write_to_client_with_ack,args=(message,to_client_ip,to_client_port,))
+                thread = threading.Thread(target=self.write_to_client_with_ack,args=(message,to_client_ip,to_client_port,from_client_ip,))
                 thread.start()
                 thread.join()
-            print("ACKcount_a",self.ack_counter[localPort_in])
-            if self.ack_counter[localPort_in] == len(clients_set):
+            print("ACKcount_a",self.ack_counter[from_client_ip][localPort_in])
+            if self.ack_counter[from_client_ip][localPort_in] == len(clients_set):
                 thread = threading.Thread(target=self.write_to_client, args=("sent", from_client_ip, int(from_inport),))
                 thread.start()
                 thread.join()
@@ -279,8 +281,10 @@ if __name__ == "__main__":
     # p_heartbeat = multiprocessing.Process(target=serve.heartbeat_mechanism,args=(serve,))
     # p_heartbeat.start()
     #serve.heartbeat_mechanism()
-    p_chat = multiprocessing.Process(target=serve.write_to_chatroom, args=())
-    p_chat.start()
+    client_list = ['192.168.188.22','192.168.188.29']
+    for client in client_list:
+        p_chat = multiprocessing.Process(target=serve.write_to_chatroom, args=())
+        p_chat.start()
     #serve.write_to_chatroom()
     #p_heartbeat.join()
 
