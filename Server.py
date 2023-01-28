@@ -18,6 +18,30 @@ local_server_port = 4443
 bufferSize  = 1024
 import datetime
 proc_queue = multiprocessing.Queue(maxsize=100)
+from time import sleep
+from threading import Thread
+
+
+# custom thread
+class CustomThread(Thread):
+    # constructor
+    def __init__(self,localPort_out):
+        # execute the base constructor
+        Thread.__init__(self)
+        # set a default value
+        self.value = None
+        self.localPort_out = localPort_out
+    # function executed in a new thread
+    def run(self):
+        # block for a moment
+        #sleep(1)
+        # store data in an instance variable
+        serve2 = Server()
+        self.value = serve2.read_client(self.localPort_out, True, False)
+
+
+
+#print(data)
 class Server():
     #to determine if the leader has been elected
     is_leader = True
@@ -55,7 +79,7 @@ class Server():
             UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
             #UDPServerSocket.setblocking(0)
             if heartbeat_leader:
-               UDPServerSocket.settimeout(1)
+               UDPServerSocket.settimeout(3)
             if heatbeat_server:
                 UDPServerSocket.settimeout(15)
             UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -107,15 +131,28 @@ class Server():
         UDPServerSocket.sendto(bytesToSend, (client_ip, client_port))
         print("sent {} to client {} {}".format(bytesToSend, client_ip, client_port))
         UDPServerSocket.close()
-        pool = ThreadPool(processes=1)
+        # pool2 = ThreadPool(processes=1)
+        # message_ack = 0
+        # async_result = pool2.apply_async(self.read_client, (localPort_out, False, False))  # tuple of args for foo
+        #
+        # # do some other stuff in the main process
+        # print("here")
+        # ack_thread = async_result.get()
+        # print('nhere')
+        #
+        # print("timout",ack_thread)
 
-        async_result = pool.apply_async(self.read_client, (localPort_out, True, False))  # tuple of args for foo
-
-        # do some other stuff in the main process
-
-        ack_thread = async_result.get()
+        # create a new thread
+        thread = CustomThread(localPort_out)
+        # start the thread
+        thread.start()
+        # wait for the thread to finish
+        thread.join()
+        # get the value returned from the thread
+        ack_thread = thread.value
         if ack_thread:
-            if ack_thread[1] == b'recvd':
+            ackkkk = ack_thread[1].split(b',')
+            if ackkkk[1] == b'recvd':
                 self.ack_counter[localPort_in] = self.ack_counter[localPort_in] + 1
         return True
         # pass
@@ -128,8 +165,9 @@ class Server():
         client_req = data_list[1]
         chatroom_id = data_list[2]
         client_message = data_list[3]
+        client_port_out = data_list[-2]
         client_port = data_list[-1]
-        return [client_id,client_req,chatroom_id,client_message,client_port]
+        return [client_id,client_req,chatroom_id,client_message,client_port_out,client_port]
 
 
     def read_client_tcp(self,client_port):
@@ -149,28 +187,30 @@ class Server():
             print(bytesAddressPair)
             message_from_client = bytesAddressPair[1].decode('utf-8')
             # print(type(message_from_client),"tt")
-            client_ip = bytesAddressPair[0][0]
-            print(client_ip)
-            client_id, data, chatroom_id, message, port, inport = self.parse_client_message(message_from_client)
+            from_client_ip = bytesAddressPair[0][0]
+            print(from_client_ip)
+            client_id, data, chatroom_id, message, from_port, from_inport = self.parse_client_message(message_from_client)
             print('D',data)
-            self.clients_handled.append(client_ip+":"+port+":"+inport)
+            self.clients_handled.append(from_client_ip+":"+from_port+":"+from_inport)
             clients_set = set(self.clients_handled)
+
             self.ack_counter[localPort_in] = 0
+            print("ACKcount_b2", self.ack_counter[localPort_in])
             for client in clients_set:
                 client_addr = client.split(":")
-                client_ip = client_addr[0]
-                client_port = int(client_addr[1])
-                client_port_ack = int(client_addr[2])
-                thread = threading.Thread(target=self.write_to_client_with_ack,args=(message,client_ip,client_port,))
+                to_client_ip = client_addr[0]
+                to_client_port = int(client_addr[1])
+                to_client_port_ack = int(client_addr[2])
+                thread = threading.Thread(target=self.write_to_client_with_ack,args=(message,to_client_ip,to_client_port,))
                 thread.start()
                 thread.join()
-
+            print("ACKcount_a",self.ack_counter[localPort_in])
             if self.ack_counter[localPort_in] == len(clients_set):
-                thread = threading.Thread(target=self.write_to_client, args=("sent", client_ip, client_port_ack,))
+                thread = threading.Thread(target=self.write_to_client, args=("sent", from_client_ip, int(from_inport),))
                 thread.start()
                 thread.join()
             else:
-                thread = threading.Thread(target=self.write_to_client, args=("please re-send", client_ip, client_port_ack,))
+                thread = threading.Thread(target=self.write_to_client, args=("please re-send", from_client_ip, int(from_inport),))
                 thread.start()
                 thread.join()
     def heart_beat_recving(self):

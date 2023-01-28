@@ -36,7 +36,7 @@ def send_message(s_address, s_port, message_to_b_sent):
 
         # Send data
         client_socket.sendto(str.encode(message_to_b_sent+",5565,5566"), (s_address, s_port))
-        #print('Sent to server: ', message_to_b_sent)
+        print('Sent to server: ', message_to_b_sent,s_port)
     finally:
         client_socket.close()
         #print('Socket closed')
