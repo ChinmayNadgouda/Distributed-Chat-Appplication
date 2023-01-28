@@ -62,7 +62,7 @@ class Server():
     server_list = {"192.168.188.22:4443":"True","192.168.188.28:4443":"False","192.168.188.29:4443":"False"}
     server_heatbeat_list = {}
     previous_message = ""
-
+    my_chatrooms = []  #["5553,5554"] when replica ["5553,5554","5557,5558"]
 
     def __init__(self):
         pass
@@ -79,7 +79,7 @@ class Server():
             UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
             #UDPServerSocket.setblocking(0)
             if heartbeat_leader:
-               UDPServerSocket.settimeout(3)
+               UDPServerSocket.settimeout(5)
             if heatbeat_server:
                 UDPServerSocket.settimeout(15)
             UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -200,7 +200,7 @@ class Server():
                 client_addr = client.split(":")
                 to_client_ip = client_addr[0]
                 to_client_port = int(client_addr[1])
-                to_client_port_ack = int(client_addr[2])
+                to_client_port_ack = int(client_addr[2])  #same as from_inport
                 thread = threading.Thread(target=self.write_to_client_with_ack,args=(message,to_client_ip,to_client_port,))
                 thread.start()
                 thread.join()
@@ -223,6 +223,7 @@ class Server():
                     thread.join()
             else:
                 print('Leader is dead,start election')
+                print('Update groupview and election start')
     def heart_beating(self):
         while True:
             time.sleep(10) #heartbeats after 60 seconds
@@ -251,6 +252,7 @@ class Server():
                     else:
                         if self.server_heatbeat_list[server_ip] > 3:
                             print("Server {} is dead:".format(server_ip))
+                            print("Update Group view and Replicate its clients to new server, choose a new server all this at next heartbeat")
                             self.server_heatbeat_list[server_ip] = 0
                             #inform all other servers
                             #redirect client to new server
@@ -272,8 +274,8 @@ if __name__ == "__main__":
     Leader = True
     serve = Server()
     #group_view = broadcast()
-    #serve.server_list = group_view
-
+    #serve.server_list = group_view[0]
+    #serve.my_chatrooms = group_view[1]
     # p_heartbeat = multiprocessing.Process(target=serve.heartbeat_mechanism,args=(serve,))
     # p_heartbeat.start()
     #serve.heartbeat_mechanism()
