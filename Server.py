@@ -30,10 +30,11 @@ class Server():
 
     #ip and id of each server in the group
     group_view = {}
+    ack_counter = {}
     #ip of clients assigned to the server, is a set  {"127.0.0.1:5343"}  "ip_addr:port"
-    clients_handled = []
+    clients_handled = [] #{"192.168.188.22:5553":"192.168.188.29,192.168.188.22","192.168.188.28:6663":False,"192.168.188.29:7773":False}
     #ip of the whole server group, is a set {"127.0.0.1:1232:0"}  "ip_addr:port:heartbeatmisscount"
-    server_list = ["192.168.188.22:4443","192.168.188.28:4443","192.168.188.29:4443"]
+    server_list = {"192.168.188.22:4443":"True","192.168.188.28:4443":"False","192.168.188.29:4443":"False"}
     server_heatbeat_list = {}
     previous_message = ""
 
@@ -94,6 +95,29 @@ class Server():
         return True
         #pass
 
+    def write_to_client_with_ack(self,server_message,client_ip,client_port):
+        # Sending a reply to client
+        UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        # UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # UDPServerSocket.bind((client_ip, client_port))
+        bytesToSend = str.encode(server_message)
+
+        UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        UDPServerSocket.sendto(bytesToSend, (client_ip, client_port))
+        print("sent {} to client {} {}".format(bytesToSend, client_ip, client_port))
+        UDPServerSocket.close()
+        pool = ThreadPool(processes=1)
+
+        async_result = pool.apply_async(self.read_client, (client_port, True, False))  # tuple of args for foo
+
+        # do some other stuff in the main process
+
+        ack_thread = async_result.get()
+        if ack_thread:
+            if ack_thread[1] == b'recvd':
+                self.ack_counter[localPort] = self.ack_counter[localPort] + 1
+        return True
+        # pass
 
     def parse_client_message(self,client_recv_data):
         #print(client_recv_data)
@@ -107,7 +131,16 @@ class Server():
         return [client_id,client_req,chatroom_id,client_message,client_port]
 
 
-
+    def read_client_tcp(self,client_port):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind((localIP,client_port))
+        sock.listen(1)
+        connection, client_address = sock.accept()
+        data = connection.recv(1024)
+        return [connection,data]
+    def write_to_client_tcp(self,connection,data):
+        connection.sendall(data)
+        connection.close()
     def write_to_chatroom(self):
         while True:
             bytesAddressPair = self.read_client(localPort)
@@ -121,11 +154,21 @@ class Server():
             print('D',data)
             self.clients_handled.append(client_ip+":"+port)
             clients_set = set(self.clients_handled)
+            self.ack_counter[localPort] = 0
             for client in clients_set:
                 client_addr = client.split(":")
                 client_ip = client_addr[0]
                 client_port = int(client_addr[1])
-                thread = threading.Thread(target=self.write_to_client,args=(message,client_ip,client_port,))
+                thread = threading.Thread(target=self.write_to_client_with_ack,args=(message,client_ip,client_port,))
+                thread.start()
+                thread.join()
+
+            if self.ack_counter[localPort] == len(clients_set):
+                thread = threading.Thread(target=self.write_to_client, args=("sent", client_ip, client_port,))
+                thread.start()
+                thread.join()
+            else:
+                thread = threading.Thread(target=self.write_to_client, args=("please re-send", client_ip, client_port,))
                 thread.start()
                 thread.join()
     def heart_beat_recving(self):
@@ -189,8 +232,8 @@ if __name__ == "__main__":
     #group_view = broadcast()
     #serve.server_list = group_view
 
-    p_heartbeat = multiprocessing.Process(target=serve.heartbeat_mechanism,args=(serve,))
-    p_heartbeat.start()
+    # p_heartbeat = multiprocessing.Process(target=serve.heartbeat_mechanism,args=(serve,))
+    # p_heartbeat.start()
     #serve.heartbeat_mechanism()
     p_chat = multiprocessing.Process(target=serve.write_to_chatroom, args=())
     p_chat.start()

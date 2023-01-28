@@ -16,10 +16,14 @@ def chatroom_input(client_id,chatroom_id):
         else:
 
             send_message(server_ip, 5553, client_id+",send_msg,"+chatroom_id+","+message_to_send)
+            data = recieve_message()
+            print(data)
 
 def chatroom_output():
     while True:
         data = recieve_message()
+        if data:
+            send_message(server_ip, 5553,"client_id"+",recvd,"+str(5553)+","+"recvd")
         print(data)
 
 
