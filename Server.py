@@ -96,24 +96,7 @@ class Server():
         self.UDPServerSocket.close()
 
     def accept_login(self):
-        #sqlConnection
-        conn = sqlite3.connect('chatDB.db')
-        c = conn.cursor()
-        #create Server
 
-        ClientID = 0
-        #create client Table if not exist
-        c.execute("CREATE TABLE IF NOT EXISTS clients(clientID INTEGER PRIMARY KEY, userName TEXT, IPAdress TEXT)")
-        conn.commit()
-
-        #set clientID
-        c.execute("SELECT count(*) FROM clients")
-        conn.commit()
-        counter = c.fetchone()[0]
-        if counter > 0:
-            ClientID = counter
-
-        #write Client to Client Table
         self.UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         self.UDPServerSocket.bind((localIP, localPort))
         data = self.broadcastlistener(self.UDPServerSocket)
@@ -121,14 +104,7 @@ class Server():
         userInformation = data.decode().split(',')
         print(userInformation)
         newUser = {'IP' : userInformation[0], 'userName' : userInformation[1]}
-        #c.execute("INSERT INTO clients (clientID, userName, IPAdress) VALUES (?, ?, ?)",(ClientID, newUser['userName'], newUser['IP'])) #grouplist
-        conn.commit()
 
-        c.execute('SELECT * FROM clients')
-        data = c.fetchall()
-        print(data)
-        for row in data:
-            print(row)
 
         #send answer
         #TODO fetch table of all available Chatrooms and send it to Client
@@ -143,8 +119,6 @@ class Server():
 
         #TODO check if chatID exists if not, create chat; send serverIP with chat to client
         
-        c.close
-        conn.close()
         print(newUser)    
 
     def broadcast(self, ip, port, broadcast_message):
@@ -174,7 +148,7 @@ class Server():
         else:
             print("I AM LEADER!")
             self.is_leader = True
-            self.group_view.insert({"serverID": 0, "IP" : self.ip_address})
+            self.group_view.append({"serverID": 0, "IP" : self.ip_address})
         self.LeaderServerSocket.close()
 
 
@@ -186,7 +160,7 @@ class Server():
         newServerID = max(self.group_view, key = lambda x:x['serverID'])['serverID'] + 1
         newServer = {"serverID": newServerID, "IP" : newServerIP}
         print(newServer)
-        self.group_view.insert(newServer)
+        self.group_view.append(newServer)
         message = pickle.dumps(self.group_view)
         self.LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         for i in self.group_view:
