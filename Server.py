@@ -3,13 +3,15 @@ A class for the Server module which will handle the chat application
 """
 import socket
 import time
-import sqlite3
 #from broadcastlistener import broadcast_listener
 #neu
 import select
 import pickle
+import multiprocessing
+from multiprocessing.pool import ThreadPool
+import threading
 
-localIP     = "192.168.0.150"
+localIP     = "192.168.0.206"
 
 BROADCAST_IP = "192.168.0.255" #needs to be reconfigured depending on network
 
@@ -25,13 +27,15 @@ class Server():
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
-    ip_address = "192.168.0.150"
+    ip_address = "192.168.0.206"
     #server id
     server_id = "12012023_1919"
     #ip and id of each server in the group
     group_view = []
     #ip of clients assigned to the server
     clients_handled = []
+    #list of all clients and Servers who handles them
+    client_list = []
     #chatroom ids handled by a server
     chatrooms_handled = []
 
@@ -125,22 +129,23 @@ class Server():
         # Create a UDP socket
         self.broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # Send message on broadcast address
-        self.broadcast_socket.sendto(str.encode(broadcast_message), (ip, port))
+        self.broadcast_socket.sendto(broadcast_message.encode(), (ip, port))
         self.broadcast_socket.close()
 
 
     def join_Network(self):
         self.broadcast(BROADCAST_IP, 5043, self.ip_address)
         self.LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        self.LeaderServerSocket.bind((localIP, 5043))
+        self.LeaderServerSocket.bind((localIP, 5044))
         self.LeaderServerSocket.setblocking(0)
         ready = select.select([self.LeaderServerSocket],[],[], 3)
         if ready[0]:
             data, server = self.LeaderServerSocket.recvfrom(4096)
             self.LeaderServerSocket.close()
             self.group_view = pickle.loads(data)
-            print("I got data: " + self.group_view)
-            self.leader = server
+            print("I got data: " + str(self.group_view))
+            self.leader = server[0]
+            print("Leader: " + self.leader + "GroupView: " + str(self.group_view))
             self.electLeader()
 
 
@@ -158,18 +163,42 @@ class Server():
         newServerIP = self.broadcastlistener(self.LeaderServerSocket)
         self.LeaderServerSocket.close()
         newServerID = max(self.group_view, key = lambda x:x['serverID'])['serverID'] + 1
-        newServer = {"serverID": newServerID, "IP" : newServerIP}
-        print(newServer)
+        newServer = {"serverID": newServerID, "IP" : newServerIP.decode()}
         self.group_view.append(newServer)
         message = pickle.dumps(self.group_view)
-        self.LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        for i in self.group_view:
-            self.LeaderServerSocket.sendto(message, (i["IP"],5043))
+        print(self.group_view)
+        self.sendto_allServers(message, 5044)
         self.LeaderServerSocket.close()
 
     def electLeader(self):
         #TODO implement leader Election
         self.is_leader = False
+
+    def sendto_allServers(self, message, port):
+        #Port 5044: Groupview, Port 5045: Clientlist 
+        self.LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        for i in self.group_view:
+            print(i['IP'])
+            self.LeaderServerSocket.sendto(message, (i['IP'],port))
+        self.LeaderServerSocket.close()
+
+    def update_groupview(self):
+        self.LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self.LeaderServerSocket.bind((localIP, 5044))
+        data, server = self.LeaderServerSocket.recvfrom(4096)
+        self.LeaderServerSocket.close()
+        self.group_view = pickle.loads(data)
+        print("New Groupview: " + str(self.group_view))
+
+    def update_clientlist(self):
+        self.clientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self.clientSocket.bind((localIP, 5045))
+        data, server = self.clientSocket.recvfrom(4096)
+        self.clientSocket.close()
+        self.client_list = pickle.loads(data)
+        print("New Clientlist: " + str(self.client_list))
+
+
 
 
 
@@ -178,7 +207,16 @@ if __name__ == "__main__":
     s = Server()
 
     s.join_Network()
-    #TODO allow multiple Clients concurrently
+
     if s.is_leader == True:
-        while True:
-            s.accept_login()
+        s.accept_Join()
+        #p_join = multiprocessing.Process(target = s.accept_Join, args = ())
+        #p_join.start()
+        #p_login = multiprocessing.Process(target = s.accept_login, args = ())
+        #p_login.start()
+    else:
+        s.update_groupview()
+        #p_groupviewUpdate = multiprocessing.Process(target = s.update_groupview, args = ())
+        #p_groupviewUpdate.start()
+        #p_clientUpdate = multiprocessing.Process(target = s.update_clientlist, args = ())
+        #p_clientUpdate.start()
