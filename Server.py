@@ -121,7 +121,7 @@ class Server():
         userInformation = data.decode().split(',')
         print(userInformation)
         newUser = {'IP' : userInformation[0], 'userName' : userInformation[1]}
-        c.execute("INSERT INTO clients (clientID, userName, IPAdress) VALUES (?, ?, ?)",(ClientID, newUser['userName'], newUser['IP'])) #grouplist
+        #c.execute("INSERT INTO clients (clientID, userName, IPAdress) VALUES (?, ?, ?)",(ClientID, newUser['userName'], newUser['IP'])) #grouplist
         conn.commit()
 
         c.execute('SELECT * FROM clients')
@@ -183,7 +183,8 @@ class Server():
         self.LeaderServerSocket.bind((localIP, 5043))
         newServerIP = self.broadcastlistener(self.LeaderServerSocket)
         self.LeaderServerSocket.close()
-        newServer = {"serverID": len(self.group_view),"IP" : newServerIP}
+        newServerID = max(self.group_view, key = lambda x:x['serverID'])['serverID'] + 1
+        newServer = {"serverID": newServerID, "IP" : newServerIP}
         print(newServer)
         self.group_view.insert(newServer)
         message = pickle.dumps(self.group_view)
