@@ -260,8 +260,10 @@ class Server():
                 "isLeader": True,
                 "IP": self.ip_address
             }
+            print("I AM LEADER")
         
         self.ringSocket.close()
+        print("Leader is: " + self.leader)
 
 
     def update_serverlist(self):
