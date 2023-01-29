@@ -45,7 +45,7 @@ class CustomThread(Thread):
 class Server():
     #to determine if the leader has been elected
     is_leader = True
-    me_leader = False # not necessary
+
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
@@ -59,7 +59,8 @@ class Server():
     #ip of clients assigned to the server, is a set  {"127.0.0.1:5343"}  "ip_addr:port"
     clients_handled = [] #{"192.168.188.22:5553":"192.168.188.29,192.168.188.22","192.168.188.28:6663":False,"192.168.188.29:7773":False}
     #ip of the whole server group, is a set {"127.0.0.1:1232:0"}  "ip_addr:port:heartbeatmisscount"
-    server_list = {"192.168.188.22:4443":"True","192.168.188.28:4443":"False","192.168.188.29:4443":"False"}
+    ################"IP:heartbeatport:chatin:chatout"
+    server_list = {"192.168.188.22:4444:5553:5554":"True","192.168.188.28:4443:4446":"False","192.168.188.29:4445:4447":"False"}
     server_heatbeat_list = {}
     previous_message = ""
     my_chatrooms = []  #["5553,5554"] when replica ["5553,5554","5557,5558"]
@@ -154,6 +155,9 @@ class Server():
             ackkkk = ack_thread[1].split(b',')
             if ackkkk[1] == b'recvd':
                 self.ack_counter[from_client_ip][localPort_in] = self.ack_counter[from_client_ip][localPort_in] + 1
+        else:
+            #remove clinet from client list
+            pass
         return True
         # pass
 
@@ -193,8 +197,10 @@ class Server():
             print(from_client_ip)
             client_id, data, chatroom_id, message, from_port, from_inport = self.parse_client_message(message_from_client)
             print('D',data)
-            self.clients_handled.append(from_client_ip+":"+from_port+":"+from_inport)
-            clients_set = set(self.clients_handled)
+            if message == b'join':
+                self.clients_handled.append(from_client_ip+":"+from_port+":"+from_inport)
+                clients_set = set(self.clients_handled)
+                continue
             self.ack_counter[from_client_ip] = {}
             self.ack_counter[from_client_ip][localPort_in] = 0
             print("ACKcount_b2", self.ack_counter[from_client_ip][localPort_in])
@@ -208,11 +214,12 @@ class Server():
                 thread.join()
             print("ACKcount_a",self.ack_counter[from_client_ip][localPort_in])
             if self.ack_counter[from_client_ip][localPort_in] == len(clients_set):
+                #for all clinets send sent!
                 thread = threading.Thread(target=self.write_to_client, args=("sent", from_client_ip, int(from_inport),))
                 thread.start()
                 thread.join()
             else:
-                thread = threading.Thread(target=self.write_to_client, args=("please re-send", from_client_ip, int(from_inport),))
+                thread = threading.Thread(target=self.write_to_client, args=("resend", from_client_ip, int(from_inport),))
                 thread.start()
                 thread.join()
     def heart_beat_recving(self):
@@ -282,6 +289,7 @@ if __name__ == "__main__":
     # p_heartbeat.start()
     #serve.heartbeat_mechanism()
     client_list = ['192.168.188.22','192.168.188.29']
+
     for client in client_list:
         p_chat = multiprocessing.Process(target=serve.write_to_chatroom, args=())
         p_chat.start()
