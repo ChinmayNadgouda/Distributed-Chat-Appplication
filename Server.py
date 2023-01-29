@@ -31,13 +31,15 @@ class Server():
     #server id
     server_id = "12012023_1919"
     #ip and id of each server in the group
-    group_view = []
+    group_view = [] #ServerID, IP, inPorts, outPorts
     #ip of clients assigned to the server
     clients_handled = []
     #list of all clients and Servers who handles them
-    client_list = []
+    client_list = [] # IP, userName, chatID
     #chatroom ids handled by a server
     chatrooms_handled = []
+    #list of only IPs for all Servers
+    server_list = []
 
     UDPServerSocket = None
     clientSocket = None
@@ -89,6 +91,7 @@ class Server():
                 # print(newUser['userName'], " with IP ", newUser['IP'], " wants to join Chat ", newUser['chatID'])
                 return data
 
+#Functions for Dynamic Discovery:
 
     def send_Message(self, ip, message):
         self.UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
@@ -104,14 +107,17 @@ class Server():
         userInformation = data.decode().split(',')
         print(userInformation)
         newUser = {'IP' : userInformation[0], 'userName' : userInformation[1], "chatID": 0}
-        self.client_list.append(newUser)
-        message = pickle.dumps(self.client_list)
-        print(self.client_list)
-        self.sendto_allServers(message, 5045)
+
 
         #send answer
         #TODO fetch table of all available Chatrooms and send it to Client
-        self.send_Message(newUser["IP"], self.ip_address)      
+        print("Send to " + newUser['IP'])
+        self.send_Message(newUser['IP'], self.ip_address)    
+
+        self.client_list.append(newUser)
+        message = pickle.dumps(self.client_list)
+        print(self.client_list)
+        self.sendto_allServers(message, 5045)  
 
         #await chatID from Client
         #self.clientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
@@ -169,10 +175,6 @@ class Server():
             self.sendto_allServers(message, 5044)
             self.LeaderServerSocket.close()
 
-    def electLeader(self):
-        #TODO implement leader Election
-        self.is_leader = False
-
     def sendto_allServers(self, message, port):
         #Port 5044: Groupview, Port 5045: Clientlist 
         self.LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
@@ -196,7 +198,42 @@ class Server():
         self.clientSocket.close()
         self.client_list = pickle.loads(data)
         print("New Clientlist: " + str(self.client_list))
+    
+    
+    #Functions for Leader Election:
+    def electLeader(self):
+        #TODO implement leader Election
+        self.update_serverlist()
+        ring = self.form_ring(self.server_list)
+        neighbour = self.get_neighbour(self.ip_address,'left')
+        print(neighbour)
+        self.is_leader = False
 
+    def update_serverlist(self):
+        for i in self.group_view:
+            self.server_list.append(i['IP'])
+        print(self.server_list)
+
+    def form_ring(member_list):
+        sorted_binary_ring = sorted([socket.inet_aton(member) for member in member_list])
+        sorted_ip_ring = [socket.inet_ntoa(node) for node in sorted_binary_ring]
+        return sorted_ip_ring
+    
+    def get_neighbour(ring, current_node_ip, direction = 'left'):
+        current_node_index = ring.index(current_node_ip) if current_node_ip in ring else -1
+        if current_node_ip != -1:
+            if direction == 'left':
+                if current_node_index +1 == len(ring):
+                    return ring[0]
+                else:
+                    return ring[current_node_index + 1]
+            else:
+                if current_node_index == 0:
+                    return ring[len(ring) - 1]
+                else:
+                    return ring[current_node_index -1]
+        else:
+            return None
 
 
 
