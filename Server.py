@@ -11,7 +11,7 @@ import multiprocessing
 from multiprocessing.pool import ThreadPool
 import threading
 
-localIP     = "192.168.0.206"
+localIP     = "192.168.0.164"
 
 BROADCAST_IP = "192.168.0.255" #needs to be reconfigured depending on network
 
@@ -19,7 +19,7 @@ localPort   = 10001
 
 bufferSize  = 1024
 
-
+proc_queue = multiprocessing.Queue(maxsize = 100)
 class Server():
     #to determine if the leader has been elected
     is_leader = False
@@ -27,7 +27,7 @@ class Server():
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
-    ip_address = "192.168.0.206"
+    ip_address = "192.168.0.164"
     #server id
     server_id = "12012023_1919"
     #ip and id of each server in the group
@@ -46,12 +46,8 @@ class Server():
 
 
 
-    #def __init__(self):
-        #self.UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        #self.UDPServerSocket.bind((localIP, localPort))
-        #self.clientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        #self.clientSocket.bind((localIP, 5001))
-        #self.LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+    def __init__(self):
+        pass
 
 
 
@@ -107,23 +103,25 @@ class Server():
         self.UDPServerSocket.close()
         userInformation = data.decode().split(',')
         print(userInformation)
-        newUser = {'IP' : userInformation[0], 'userName' : userInformation[1]}
-
+        newUser = {'IP' : userInformation[0], 'userName' : userInformation[1], "chatID": 0}
+        self.client_list.append(newUser)
+        message = pickle.dumps(self.client_list)
+        print(self.client_list)
+        self.sendto_allServers(message, 5045)
 
         #send answer
         #TODO fetch table of all available Chatrooms and send it to Client
         self.send_Message(newUser["IP"], self.ip_address)      
 
         #await chatID from Client
-        self.clientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        self.clientSocket.bind((localIP, 5001))
-        data, server = self.clientSocket.recvfrom(bufferSize)
-        self.clientSocket.close()
-        print('Received message: ', data.decode())
-
+        #self.clientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        #self.clientSocket.bind((localIP, 5001))
+        #data, server = self.clientSocket.recvfrom(bufferSize)
+        #self.clientSocket.close()
+        #print('Received message: ', data.decode())
         #TODO check if chatID exists if not, create chat; send serverIP with chat to client
         
-        print(newUser)    
+        #print(newUser)    
 
     def broadcast(self, ip, port, broadcast_message):
         # Create a UDP socket
@@ -153,22 +151,23 @@ class Server():
         else:
             print("I AM LEADER!")
             self.is_leader = True
-            self.group_view.append({"serverID": 0, "IP" : self.ip_address})
+            self.group_view.append({"serverID": 0, "IP" : self.ip_address, "inPorts": [], "outPorts": []})
         self.LeaderServerSocket.close()
 
 
     def accept_Join(self):
-        self.LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        self.LeaderServerSocket.bind((localIP, 5043))
-        newServerIP = self.broadcastlistener(self.LeaderServerSocket)
-        self.LeaderServerSocket.close()
-        newServerID = max(self.group_view, key = lambda x:x['serverID'])['serverID'] + 1
-        newServer = {"serverID": newServerID, "IP" : newServerIP.decode()}
-        self.group_view.append(newServer)
-        message = pickle.dumps(self.group_view)
-        print(self.group_view)
-        self.sendto_allServers(message, 5044)
-        self.LeaderServerSocket.close()
+        #while True:
+            self.LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+            self.LeaderServerSocket.bind((localIP, 5043))
+            newServerIP = self.broadcastlistener(self.LeaderServerSocket)
+            self.LeaderServerSocket.close()
+            newServerID = max(self.group_view, key = lambda x:x['serverID'])['serverID'] + 1
+            newServer = {"serverID": newServerID, "IP" : newServerIP.decode(), "inPorts": [], "outPorts": []}
+            self.group_view.append(newServer)
+            message = pickle.dumps(self.group_view)
+            print(self.group_view)
+            self.sendto_allServers(message, 5044)
+            self.LeaderServerSocket.close()
 
     def electLeader(self):
         #TODO implement leader Election
@@ -209,13 +208,17 @@ if __name__ == "__main__":
     s.join_Network()
 
     if s.is_leader == True:
-        s.accept_Join()
+        while True:
+            s.accept_Join()
+            s.accept_login()
         #p_join = multiprocessing.Process(target = s.accept_Join, args = ())
         #p_join.start()
         #p_login = multiprocessing.Process(target = s.accept_login, args = ())
         #p_login.start()
+
+
     else:
-        s.update_groupview()
+        s.update_clientlist()
         #p_groupviewUpdate = multiprocessing.Process(target = s.update_groupview, args = ())
         #p_groupviewUpdate.start()
         #p_clientUpdate = multiprocessing.Process(target = s.update_clientlist, args = ())
