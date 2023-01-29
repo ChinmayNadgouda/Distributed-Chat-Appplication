@@ -147,6 +147,7 @@ class Server():
         self.LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         self.LeaderServerSocket.bind((localIP, 5044))
         self.LeaderServerSocket.setblocking(0)
+        #TODO safe mechanism in case message gets lost
         ready = select.select([self.LeaderServerSocket],[],[], 3)
         if ready[0]:
             data, server = self.LeaderServerSocket.recvfrom(4096)
@@ -215,7 +216,7 @@ class Server():
 
         self.ringSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         #self.ringSocket.bind((self.ip_address, 5892))
-        message = pickle.dump({"mid": self.my_uid, "isLeader": False, "IP": self.ip_address})
+        message = pickle.dumps({"mid": self.my_uid, "isLeader": False, "IP": self.ip_address})
         self.ringSocket.sendto(message,(neighbour,5892))
         self.ringSocket.close()
 
@@ -225,7 +226,6 @@ class Server():
         ring = self.form_ring(self.server_list)
         neighbour = self.get_neighbour(ring, self.ip_address,'left')
         print("My neighbour: " + neighbour)
-        participant = False
 
         self.ringSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.ringSocket.bind((self.ip_address, 5892))
@@ -233,11 +233,12 @@ class Server():
         print("Waiting for Election Messages")
 
         data, adress = self.ringSocket.recvfrom(bufferSize)
-        election_message = pickle.load(data)
+        election_message = pickle.loads(data)
         print(election_message)
 
         if election_message['isLeader']:
             self.leader = election_message['IP']
+            print("Leader is: " + self.leader)
             participant = False
             self.ringSocket.sendto(data,(neighbour,5892))
 
@@ -248,7 +249,8 @@ class Server():
                 "IP": self.ip_address
             }
             participant = True
-            self.ringSocket.sendto(pickle.dump(new_election_message),(neighbour,5892))
+            self.ringSocket.sendto(pickle.dumps(new_election_message),(neighbour,5892))
+
         elif election_message['mid'] > self.my_uid:
             participant = True
             self.ringSocket.sendto(data,(neighbour,5892))
@@ -260,15 +262,18 @@ class Server():
                 "isLeader": True,
                 "IP": self.ip_address
             }
+            self.ringSocket.sendto(pickle.dumps(new_election_message),(neighbour,5892))
             print("I AM LEADER")
         
         self.ringSocket.close()
-        print("Leader is: " + self.leader)
+        if participant:
+            self.election()
 
 
     def update_serverlist(self):
         for i in self.group_view:
             self.server_list.append(i['IP'])
+        self.server_list = list(dict.fromkeys(self.server_list))
         print(self.server_list)
 
     def form_ring(self, member_list):
@@ -300,10 +305,10 @@ if __name__ == "__main__":
     s = Server()
 
     s.join_Network()
-
-    if s.is_leader == True:
-        while True:
+    while True:
+        if s.is_leader == True:
             s.accept_Join()
+            s.election()
             #s.accept_login()
         #p_join = multiprocessing.Process(target = s.accept_Join, args = ())
         #p_join.start()
@@ -311,8 +316,9 @@ if __name__ == "__main__":
         #p_login.start()
 
 
-    else:
-        s.update_clientlist()
+        else:
+            s.election()
+        #s.update_clientlist()
         #p_groupviewUpdate = multiprocessing.Process(target = s.update_groupview, args = ())
         #p_groupviewUpdate.start()
         #p_clientUpdate = multiprocessing.Process(target = s.update_clientlist, args = ())
