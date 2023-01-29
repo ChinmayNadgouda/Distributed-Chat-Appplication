@@ -11,6 +11,8 @@ import multiprocessing
 from multiprocessing.pool import ThreadPool
 import threading
 
+import uuid
+
 localIP     = "192.168.0.164"
 
 BROADCAST_IP = "192.168.0.255" #needs to be reconfigured depending on network
@@ -30,6 +32,8 @@ class Server():
     ip_address = "192.168.0.164"
     #server id
     server_id = "12012023_1919"
+    #Unique Identifier
+    my_uid = str(uuid.uuid1())
     #ip and id of each server in the group
     group_view = [] #ServerID, IP, inPorts, outPorts
     #ip of clients assigned to the server
@@ -45,6 +49,7 @@ class Server():
     clientSocket = None
     broadcast_socket = None
     LeaderServerSocket = None
+    ringSocket = None
 
 
 
@@ -150,7 +155,7 @@ class Server():
             print("I got data: " + str(self.group_view))
             self.leader = server[0]
             print("Leader: " + self.leader + "GroupView: " + str(self.group_view))
-            self.electLeader()
+            self.start_election()
 
 
 
@@ -201,25 +206,75 @@ class Server():
     
     
     #Functions for Leader Election:
-    def electLeader(self):
+    def start_election(self):
         #TODO implement leader Election
+        print("My UID: " + self.my_uid)
         self.update_serverlist()
         ring = self.form_ring(self.server_list)
-        neighbour = self.get_neighbour(self.ip_address,'left')
-        print(neighbour)
-        self.is_leader = False
+        neighbour = self.get_neighbour(ring, self.ip_address,'left')
+
+        self.ringSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        #self.ringSocket.bind((self.ip_address, 5892))
+        message = pickle.dump({"mid": self.my_uid, "isLeader": False, "IP": self.ip_address})
+        self.ringSocket.sendto(message,(neighbour,5892))
+        self.ringSocket.close()
+
+    def election(self):
+        participant = False
+        self.update_serverlist()
+        ring = self.form_ring(self.server_list)
+        neighbour = self.get_neighbour(ring, self.ip_address,'left')
+        print("My neighbour: " + neighbour)
+        participant = False
+
+        self.ringSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.ringSocket.bind((self.ip_address, 5892))
+
+        print("Waiting for Election Messages")
+
+        data, adress = self.ringSocket.recvfrom(bufferSize)
+        election_message = pickle.load(data)
+        print(election_message)
+
+        if election_message['isLeader']:
+            self.leader = election_message['IP']
+            participant = False
+            self.ringSocket.sendto(data,(neighbour,5892))
+
+        if election_message['mid'] < self.my_uid and not participant:
+            new_election_message = {
+                "mid": self.my_uid, 
+                "isLeader": False,
+                "IP": self.ip_address
+            }
+            participant = True
+            self.ringSocket.sendto(pickle.dump(new_election_message),(neighbour,5892))
+        elif election_message['mid'] > self.my_uid:
+            participant = True
+            self.ringSocket.sendto(data,(neighbour,5892))
+        elif election_message['mid'] == self.my_uid:
+            self.leader = self.ip_address
+            self.is_leader = True
+            new_election_message = {
+                "mid": self.my_uid,
+                "isLeader": True,
+                "IP": self.ip_address
+            }
+        
+        self.ringSocket.close()
+
 
     def update_serverlist(self):
         for i in self.group_view:
             self.server_list.append(i['IP'])
         print(self.server_list)
 
-    def form_ring(member_list):
+    def form_ring(self, member_list):
         sorted_binary_ring = sorted([socket.inet_aton(member) for member in member_list])
         sorted_ip_ring = [socket.inet_ntoa(node) for node in sorted_binary_ring]
         return sorted_ip_ring
     
-    def get_neighbour(ring, current_node_ip, direction = 'left'):
+    def get_neighbour(self, ring, current_node_ip, direction = 'left'):
         current_node_index = ring.index(current_node_ip) if current_node_ip in ring else -1
         if current_node_ip != -1:
             if direction == 'left':
@@ -247,7 +302,7 @@ if __name__ == "__main__":
     if s.is_leader == True:
         while True:
             s.accept_Join()
-            s.accept_login()
+            #s.accept_login()
         #p_join = multiprocessing.Process(target = s.accept_Join, args = ())
         #p_join.start()
         #p_login = multiprocessing.Process(target = s.accept_login, args = ())
