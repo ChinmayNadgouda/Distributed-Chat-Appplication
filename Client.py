@@ -9,6 +9,10 @@ client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 BROADCAST_IP = "192.168.0.255" #needs to be reconfigured depending on network
 server_port = 10001
 bufferSize  = 1024
+#get own IP
+MY_HOST = socket.gethostname()
+MY_IP = "192.168.0.164" #socket.gethostbyname(MY_HOST)
+
 def send_message(s_address, s_port):
     try:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -38,22 +42,7 @@ def broadcast(ip, port, broadcast_message):
     broadcast_socket.sendto(str.encode(broadcast_message), (ip, port))
     #broadcast_socket.close()
 
-
-
-
-if __name__ == '__main__':
-
-    # Bind the socket to the port
-
-
-    #get own IP
-    MY_HOST = socket.gethostname()
-    MY_IP = "192.168.0.150" #socket.gethostbyname(MY_HOST)
-
-
-    #Input User Information
-    userName = input('Enter UserName ')
-
+def login(userName):
     message = MY_IP + ',' + userName
     broadcast(BROADCAST_IP, server_port, message)
     broadcast_socket.close()
@@ -63,10 +52,25 @@ if __name__ == '__main__':
     print('Waiting for response...')
     data, server = client_socket.recvfrom(bufferSize)
     print('Received message: ', data.decode())
-    serverAdress = data.decode()
+    server_ip = data.decode()
+    print("Communicate with server: " + server_ip)
+    after_login()
 
-    chatID = input('Enter ChatID: ')
-    client_socket.sendto(chatID.encode(), (serverAdress,5001))
-    client_socket.close()
+def after_login():
+    return True
+
+
+
+if __name__ == '__main__':
+
+    # Bind the socket to the port
+
+
+    
+
+    #Input User Information
+    userName = input('Enter UserName ')
+
+    login(userName)
 
     #receive IP of Server where Chatroom runs, opens connection to it
