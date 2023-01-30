@@ -197,10 +197,12 @@ class Server():
             print(from_client_ip)
             client_id, data, chatroom_id, message, from_port, from_inport = self.parse_client_message(message_from_client)
             print('D',data)
-            if message == b'join':
+            if message == 'join':
                 self.clients_handled.append(from_client_ip+":"+from_port+":"+from_inport)
                 clients_set = set(self.clients_handled)
+                print("hrr")
                 continue
+
             self.ack_counter[from_client_ip] = {}
             self.ack_counter[from_client_ip][localPort_in] = 0
             print("ACKcount_b2", self.ack_counter[from_client_ip][localPort_in])

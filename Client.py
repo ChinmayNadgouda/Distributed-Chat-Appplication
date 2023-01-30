@@ -15,21 +15,18 @@ def chatroom_input(client_id,chatroom_id):
             # send_message() extting
             return True
         else:
-            n = 0
-            while(n<3):
-                send_message(server_ip, 5553, client_id+",send_msg,"+chatroom_id+","+message_to_send)
+            send_message(server_ip, 5553, client_id+",send_msg,"+chatroom_id+","+message_to_send)
+            data = recieve_message(5566)
+            if data == b'sent':
+                print(data)
+            else:
+                send_message(server_ip, 5553, client_id + ",send_msg," + chatroom_id + "," + message_to_send)
                 data = recieve_message(5566)
-                if data == b'sent':
-                    n = 100
-                    print(data)
-                elif data == b'resend':
-                    send_message(server_ip, 5553, client_id + ",send_msg," + chatroom_id + "," + message_to_send)
-                    n = n + 1
-                    print("retry")
-                    pass
+                print(data)
+
 
 def chatroom_output():
-    send_message(server_ip, 5554,"client_id"+",join"+str(5553)+","+"join")
+    send_message(server_ip, 5553,"client_id"+",join,"+str(5553)+","+"join")
     while True:
         data = recieve_message()
         if data:
