@@ -154,6 +154,7 @@ class Server():
             LeaderServerSocket.bind((localIP, 5043))
             newServerIP = self.broadcastlistener(LeaderServerSocket)
             LeaderServerSocket.close()
+            print(server.group_view)
             newServerID = max(server.group_view, key = lambda x:x['serverID'])['serverID'] + 1
             newServer = {"serverID": newServerID, "IP" : newServerIP.decode(), "inPorts": [], "outPorts": []}
             server.group_view.append(newServer)
@@ -184,7 +185,7 @@ class Server():
         data, server = clientSocket.recvfrom(4096)
         clientSocket.close()
         server.client_list = pickle.loads(data)
-        print("New Clientlist: " + str(self.client_list))
+        print("New Clientlist: " + str(server.client_list))
     
     
     #Functions for Leader Election:
@@ -287,27 +288,45 @@ if __name__ == "__main__":
     s = Server()
 
     s.join_Network(s)
+    print(s.group_view)
     #while True:
     if s.is_leader == True:
          #   s.accept_Join()
           #  s.election()
             #s.accept_login()
-        p_join = multiprocessing.Process(target = s.accept_Join, args = (s,))
+        
+    #     p_join = multiprocessing.Process(target = s.accept_Join, args = (s,))
+    #     p_join.start()
+    #    # p_join.join()
+    #     p_login = multiprocessing.Process(target = s.accept_login, args = (s,))
+    #     p_login.start()
+    #     if len(s.server_list) != 0:
+    #         p_election = multiprocessing.Process(target = s.election, args = (s,))
+    #         p_election.start()
+    
+        p_join = threading.Thread(target = s.accept_Join, args = (s,))
         p_join.start()
        # p_join.join()
-        p_login = multiprocessing.Process(target = s.accept_login, args = (s,))
+        p_login = threading.Thread(target = s.accept_login, args = (s,))
         p_login.start()
         if len(s.server_list) != 0:
-            p_election = multiprocessing.Process(target = s.election, args = (s,))
+            p_election = threading.Thread(target = s.election, args = (s,))
             p_election.start()
+
 
 
     else:
            
         #s.update_clientlist()
-        p_groupviewUpdate = multiprocessing.Process(target = s.update_groupview, args = (s,))
+        # p_groupviewUpdate = multiprocessing.Process(target = s.update_groupview, args = (s,))
+        # p_groupviewUpdate.start()
+        # p_clientUpdate = multiprocessing.Process(target = s.update_clientlist, args = (s,))
+        # p_clientUpdate.start()
+        # p_election = multiprocessing.Process(target = s.election, args = (s,))
+        # p_election.start()
+        p_groupviewUpdate = threading.Thread(target = s.update_groupview, args = (s,))
         p_groupviewUpdate.start()
-        p_clientUpdate = multiprocessing.Process(target = s.update_clientlist, args = (s,))
+        p_clientUpdate = threading.Thread(target = s.update_clientlist, args = (s,))
         p_clientUpdate.start()
-        p_election = multiprocessing.Process(target = s.election, args = (s,))
+        p_election = threading.Thread(target = s.election, args = (s,))
         p_election.start()
