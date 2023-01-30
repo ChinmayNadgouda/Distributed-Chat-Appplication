@@ -113,7 +113,8 @@ class Server():
                 #self.clientSocket.close()
                 #print('Received message: ', data.decode())
                 #TODO check if chatID exists if not, create chat; send serverIP with chat to client
-                
+                if self.is_leader == False:
+                    return
                 #print(newUser)    
             except socket.timeout:
                 UDPServerSocket.close()
@@ -168,6 +169,8 @@ class Server():
             print(message)
             self.sendto_allServers(server, message, 5044)
             LeaderServerSocket.close()
+            if self.is_leader == False:
+                return
 
     def sendto_allServers(self, server, message, port):
         #Port 5044: Groupview, Port 5045: Clientlist 
@@ -243,6 +246,7 @@ class Server():
                 participant = False
                 ringSocket.sendto(data,(neighbour,5892))
                 ringSocket.close()
+                return
                 
 
             if election_message['mid'] < self.my_uid and not participant:
@@ -253,10 +257,13 @@ class Server():
                 }
                 participant = True
                 ringSocket.sendto(pickle.dumps(new_election_message),(neighbour,5892))
+                ringSocket.close()
 
             elif election_message['mid'] > self.my_uid:
                 participant = True
                 ringSocket.sendto(data,(neighbour,5892))
+                ringSocket.close()
+
             elif election_message['mid'] == self.my_uid:
                 self.leader = self.ip_address
                 self.is_leader = True
@@ -268,9 +275,10 @@ class Server():
                 ringSocket.sendto(pickle.dumps(new_election_message),(neighbour,5892))
                 print("I AM LEADER")
                 ringSocket.close()
+                return
                 
             
-            ringSocket.close()
+            
             print("Leader is " + self.leader)
 
 
@@ -310,46 +318,48 @@ if __name__ == "__main__":
 
     s.join_Network(s)
     print(s.group_view)
-   
-    if s.is_leader == True:
-        #   s.accept_Join()
-        #  s.election()
-            #s.accept_login()
+    while True:
+        if s.is_leader == True:
+            #   s.accept_Join()
+            #  s.election()
+                #s.accept_login()
+            
+        #     p_join = multiprocessing.Process(target = s.accept_Join, args = (s,))
+        #     p_join.start()
+        #    # p_join.join()
+        #     p_login = multiprocessing.Process(target = s.accept_login, args = (s,))
+        #     p_login.start()
+        #     if len(s.server_list) != 0:
+        #         p_election = multiprocessing.Process(target = s.election, args = (s,))
+        #         p_election.start()
         
-    #     p_join = multiprocessing.Process(target = s.accept_Join, args = (s,))
-    #     p_join.start()
-    #    # p_join.join()
-    #     p_login = multiprocessing.Process(target = s.accept_login, args = (s,))
-    #     p_login.start()
-    #     if len(s.server_list) != 0:
-    #         p_election = multiprocessing.Process(target = s.election, args = (s,))
-    #         p_election.start()
-    
-        p_join = threading.Thread(target = s.accept_Join, args = (s,))
-        p_join.start()
-    # p_join.join()
-        p_login = threading.Thread(target = s.accept_login, args = (s,))
-        p_login.start()
-        p_election = threading.Thread(target = s.election, args = (s,))
-        p_election.start()
-        #p_login.join()
+            p_join = threading.Thread(target = s.accept_Join, args = (s,))
+            p_join.start()
+        # p_join.join()
+            p_login = threading.Thread(target = s.accept_login, args = (s,))
+            p_login.start()
+            p_election = threading.Thread(target = s.election, args = (s,))
+            p_election.start()
+            p_login.join()
+            p_join.join()
+            p_election.join()
 
 
-    else:
-        
-        #s.update_clientlist()
-        # p_groupviewUpdate = multiprocessing.Process(target = s.update_groupview, args = (s,))
-        # p_groupviewUpdate.start()
-        # p_clientUpdate = multiprocessing.Process(target = s.update_clientlist, args = (s,))
-        # p_clientUpdate.start()
-        # p_election = multiprocessing.Process(target = s.election, args = (s,))
-        # p_election.start()
-        p_groupviewUpdate = threading.Thread(target = s.update_groupview, args = (s,))
-        p_groupviewUpdate.start()
-        p_clientUpdate = threading.Thread(target = s.update_clientlist, args = (s,))
-        p_clientUpdate.start()
-        p_election = threading.Thread(target = s.election, args = (s,))
-        p_election.start()
-        p_groupviewUpdate.join()
-        p_clientUpdate.join()
-        p_election.join()
+        else:
+            
+            #s.update_clientlist()
+            # p_groupviewUpdate = multiprocessing.Process(target = s.update_groupview, args = (s,))
+            # p_groupviewUpdate.start()
+            # p_clientUpdate = multiprocessing.Process(target = s.update_clientlist, args = (s,))
+            # p_clientUpdate.start()
+            # p_election = multiprocessing.Process(target = s.election, args = (s,))
+            # p_election.start()
+            p_groupviewUpdate = threading.Thread(target = s.update_groupview, args = (s,))
+            p_groupviewUpdate.start()
+            p_clientUpdate = threading.Thread(target = s.update_clientlist, args = (s,))
+            p_clientUpdate.start()
+            p_election = threading.Thread(target = s.election, args = (s,))
+            p_election.start()
+            p_groupviewUpdate.join()
+            p_clientUpdate.join()
+            p_election.join()
