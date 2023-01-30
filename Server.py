@@ -98,9 +98,9 @@ class Server():
         print("Send to " + newUser['IP'])
         self.send_Message(newUser['IP'], self.ip_address)    
 
-        server.client_list.append(newUser)
-        message = pickle.dumps(server.client_list)
-        print(server.client_list)
+        self.client_list.append(newUser)
+        message = pickle.dumps(self.client_list)
+        print(self.client_list)
         self.sendto_allServers(server, message, 5045)  
 
         #await chatID from Client
@@ -131,19 +131,19 @@ class Server():
         if ready[0]:
             data, server = LeaderServerSocket.recvfrom(4096)
             LeaderServerSocket.close()
-            server.group_view = pickle.loads(data)
-            print("I got data: " + str(server.group_view))
-            server.leader = server[0]
-            print("Leader: " + server.leader + "GroupView: " + str(server.group_view))
+            self.group_view = pickle.loads(data)
+            print("I got data: " + str(self.group_view))
+            self.leader = server[0]
+            print("Leader: " + self.leader + "GroupView: " + str(self.group_view))
             self.start_election(server)
 
 
 
         else:
             print("I AM LEADER!")
-            server.is_leader = True
-            server.group_view.append({"serverID": 0, "IP" : self.ip_address, "inPorts": [], "outPorts": []})
-            print(server.group_view)
+            self.is_leader = True
+            self.group_view.append({"serverID": 0, "IP" : self.ip_address, "inPorts": [], "outPorts": []})
+            print(self.group_view)
         LeaderServerSocket.close()
 
 
@@ -154,19 +154,19 @@ class Server():
             LeaderServerSocket.bind((localIP, 5043))
             newServerIP = self.broadcastlistener(LeaderServerSocket)
             LeaderServerSocket.close()
-            print(server.group_view)
-            newServerID = max(server.group_view, key = lambda x:x['serverID'])['serverID'] + 1
+            print(self.group_view)
+            newServerID = max(self.group_view, key = lambda x:x['serverID'])['serverID'] + 1
             newServer = {"serverID": newServerID, "IP" : newServerIP.decode(), "inPorts": [], "outPorts": []}
-            server.group_view.append(newServer)
-            message = pickle.dumps(server.group_view)
-            print(server.group_view)
+            self.group_view.append(newServer)
+            message = pickle.dumps(self.group_view)
+            print(message)
             self.sendto_allServers(server, message, 5044)
             LeaderServerSocket.close()
 
     def sendto_allServers(self, server, message, port):
         #Port 5044: Groupview, Port 5045: Clientlist 
         LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        for i in server.group_view:
+        for i in self.group_view:
             print(i['IP'])
             LeaderServerSocket.sendto(message, (i['IP'],port))
         LeaderServerSocket.close()
@@ -176,16 +176,16 @@ class Server():
         LeaderServerSocket.bind((localIP, 5044))
         data, server = LeaderServerSocket.recvfrom(4096)
         LeaderServerSocket.close()
-        server.group_view = pickle.loads(data)
-        print("New Groupview: " + str(server.group_view))
+        self.group_view = pickle.loads(data)
+        print("New Groupview: " + str(self.group_view))
 
     def update_clientlist(self, server):
         clientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         clientSocket.bind((localIP, 5045))
         data, server = clientSocket.recvfrom(4096)
         clientSocket.close()
-        server.client_list = pickle.loads(data)
-        print("New Clientlist: " + str(server.client_list))
+        self.client_list = pickle.loads(data)
+        print("New Clientlist: " + str(self.client_list))
     
     
     #Functions for Leader Election:
@@ -193,7 +193,7 @@ class Server():
         #TODO implement leader Election
         print("My UID: " + self.my_uid)
         self.update_serverlist(server)
-        ring = self.form_ring(server.server_list)
+        ring = self.form_ring(self.server_list)
         neighbour = self.get_neighbour(ring, self.ip_address,'left')
 
         ringSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -204,13 +204,10 @@ class Server():
 
     def election(self, server):
         participant = False
-       
-        print("My neighbour: " + neighbour)
-
         ringSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         ringSocket.bind((self.ip_address, 5892))
         self.update_serverlist(server)
-        ring = self.form_ring(server.server_list)
+        ring = self.form_ring(self.server_list)
         neighbour = self.get_neighbour(ring, self.ip_address,'left')
 
         print("Waiting for Election Messages")
@@ -220,8 +217,8 @@ class Server():
         print(election_message)
 
         if election_message['isLeader']:
-            server.leader = election_message['IP']
-            print("Leader is: " + server.leader)
+            self.leader = election_message['IP']
+            print("Leader is: " + self.leader)
             participant = False
             ringSocket.sendto(data,(neighbour,5892))
 
@@ -238,8 +235,8 @@ class Server():
             participant = True
             ringSocket.sendto(data,(neighbour,5892))
         elif election_message['mid'] == self.my_uid:
-            server.leader = self.ip_address
-            server.is_leader = True
+            self.leader = self.ip_address
+            self.is_leader = True
             new_election_message = {
                 "mid": self.my_uid,
                 "isLeader": True,
@@ -250,14 +247,14 @@ class Server():
         
         ringSocket.close()
         if participant:
-            self.election()
+            self.election(server)
 
 
     def update_serverlist(self, server):
-        for i in server.group_view:
-            server.server_list.append(i['IP'])
-        server.server_list = list(dict.fromkeys(server.server_list))
-        print(server.server_list)
+        for i in self.group_view:
+            self.server_list.append(i['IP'])
+        self.server_list = list(dict.fromkeys(self.server_list))
+        print(self.server_list)
 
     def form_ring(self, member_list):
         sorted_binary_ring = sorted([socket.inet_aton(member) for member in member_list])
@@ -309,9 +306,8 @@ if __name__ == "__main__":
        # p_join.join()
         p_login = threading.Thread(target = s.accept_login, args = (s,))
         p_login.start()
-        if len(s.server_list) != 0:
-            p_election = threading.Thread(target = s.election, args = (s,))
-            p_election.start()
+        p_election = threading.Thread(target = s.election, args = (s,))
+        p_election.start()
 
 
 
