@@ -85,6 +85,8 @@ class Server():
     def accept_login(self, server):
         while True:
             try:
+                if self.is_leader == False:
+                    return
                 UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
                 UDPServerSocket.bind((localIP, localPort))
                 UDPServerSocket.settimeout(10)
@@ -156,6 +158,8 @@ class Server():
 
     def accept_Join(self, server):
         while True:
+            if self.is_leader == False:
+                    return
             LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
             LeaderServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             LeaderServerSocket.bind((localIP, 5043))
@@ -190,26 +194,27 @@ class Server():
             self.group_view = pickle.loads(data)
             print("New Groupview: " + str(self.group_view))
             if self.is_leader == False:
-                self.update_groupview()
+                self.update_groupview(server)
         except socket.timeout:
             LeaderServerSocket.close()
             if self.is_leader == False:
-                self.update_groupview()
+                self.update_groupview(server)
 
     def update_clientlist(self, server):
         try:
             clientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
             clientSocket.bind((localIP, 5045))
+            clientSocket.settimeout(5)
             data, server = clientSocket.recvfrom(4096)
             clientSocket.close()
             self.client_list = pickle.loads(data)
             print("New Clientlist: " + str(self.client_list))
             if self.is_leader == False:
-                self.update_clientlist()
+                self.update_clientlist(server)
         except socket.timeout:
             clientSocket.close()
             if self.is_leader == False:
-                self.update_clientlist()    
+                self.update_clientlist(server)    
     
     #Functions for Leader Election:
     def start_election(self, server):
@@ -245,6 +250,7 @@ class Server():
                 print("Leader is: " + self.leader)
                 participant = False
                 ringSocket.sendto(data,(neighbour,5892))
+                self.is_leader = False
                 ringSocket.close()
                 return
                 
