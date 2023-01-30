@@ -83,35 +83,41 @@ class Server():
         UDPServerSocket.close()
 
     def accept_login(self, server):
+        while True:
+            try:
+                UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+                UDPServerSocket.bind((localIP, localPort))
+                UDPServerSocket.settimeout(10)
+                print("Listening to client messages")
+                data = self.broadcastlistener(UDPServerSocket)
+                UDPServerSocket.close()
+                userInformation = data.decode().split(',')
+                print(userInformation)
+                newUser = {'IP' : userInformation[0], 'userName' : userInformation[1], "chatID": 0}
 
-        UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        UDPServerSocket.bind((localIP, localPort))
-        data = self.broadcastlistener(UDPServerSocket)
-        UDPServerSocket.close()
-        userInformation = data.decode().split(',')
-        print(userInformation)
-        newUser = {'IP' : userInformation[0], 'userName' : userInformation[1], "chatID": 0}
 
+                #send answer
+                #TODO fetch table of all available Chatrooms and send it to Client
+                print("Send to " + newUser['IP'])
+                self.send_Message(newUser['IP'], self.ip_address)    
 
-        #send answer
-        #TODO fetch table of all available Chatrooms and send it to Client
-        print("Send to " + newUser['IP'])
-        self.send_Message(newUser['IP'], self.ip_address)    
+                self.client_list.append(newUser)
+                message = pickle.dumps(self.client_list)
+                print(self.client_list)
+                self.sendto_allServers(server, message, 5045)  
 
-        self.client_list.append(newUser)
-        message = pickle.dumps(self.client_list)
-        print(self.client_list)
-        self.sendto_allServers(server, message, 5045)  
-
-        #await chatID from Client
-        #self.clientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        #self.clientSocket.bind((localIP, 5001))
-        #data, server = self.clientSocket.recvfrom(bufferSize)
-        #self.clientSocket.close()
-        #print('Received message: ', data.decode())
-        #TODO check if chatID exists if not, create chat; send serverIP with chat to client
-        
-        #print(newUser)    
+                #await chatID from Client
+                #self.clientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+                #self.clientSocket.bind((localIP, 5001))
+                #data, server = self.clientSocket.recvfrom(bufferSize)
+                #self.clientSocket.close()
+                #print('Received message: ', data.decode())
+                #TODO check if chatID exists if not, create chat; send serverIP with chat to client
+                
+                #print(newUser)    
+            except socket.timeout:
+                UDPServerSocket.close()
+                self.accept_login(server)
 
     def broadcast(self, ip, port, broadcast_message):
         # Create a UDP socket
@@ -172,21 +178,35 @@ class Server():
         LeaderServerSocket.close()
 
     def update_groupview(self, server):
-        LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        LeaderServerSocket.bind((localIP, 5044))
-        data, server = LeaderServerSocket.recvfrom(4096)
-        LeaderServerSocket.close()
-        self.group_view = pickle.loads(data)
-        print("New Groupview: " + str(self.group_view))
+        try:
+            LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+            LeaderServerSocket.bind((localIP, 5044))
+            LeaderServerSocket.settimeout(5)
+            data, server = LeaderServerSocket.recvfrom(4096)
+            LeaderServerSocket.close()
+            self.group_view = pickle.loads(data)
+            print("New Groupview: " + str(self.group_view))
+            if self.is_leader == False:
+                self.update_groupview()
+        except socket.timeout:
+            LeaderServerSocket.close()
+            if self.is_leader == False:
+                self.update_groupview()
 
     def update_clientlist(self, server):
-        clientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        clientSocket.bind((localIP, 5045))
-        data, server = clientSocket.recvfrom(4096)
-        clientSocket.close()
-        self.client_list = pickle.loads(data)
-        print("New Clientlist: " + str(self.client_list))
-    
+        try:
+            clientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+            clientSocket.bind((localIP, 5045))
+            data, server = clientSocket.recvfrom(4096)
+            clientSocket.close()
+            self.client_list = pickle.loads(data)
+            print("New Clientlist: " + str(self.client_list))
+            if self.is_leader == False:
+                self.update_clientlist()
+        except socket.timeout:
+            clientSocket.close()
+            if self.is_leader == False:
+                self.update_clientlist()    
     
     #Functions for Leader Election:
     def start_election(self, server):
@@ -203,51 +223,55 @@ class Server():
         ringSocket.close()
 
     def election(self, server):
-        participant = False
-        ringSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        ringSocket.bind((self.ip_address, 5892))
-        self.update_serverlist(server)
-        ring = self.form_ring(self.server_list)
-        neighbour = self.get_neighbour(ring, self.ip_address,'left')
-
-        print("Waiting for Election Messages")
-
-        data, adress = ringSocket.recvfrom(bufferSize)
-        election_message = pickle.loads(data)
-        print(election_message)
-
-        if election_message['isLeader']:
-            self.leader = election_message['IP']
-            print("Leader is: " + self.leader)
+        while True:
             participant = False
-            ringSocket.sendto(data,(neighbour,5892))
+            ringSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            ringSocket.bind((self.ip_address, 5892))
+            self.update_serverlist(server)
+            ring = self.form_ring(self.server_list)
+            neighbour = self.get_neighbour(ring, self.ip_address,'left')
 
-        if election_message['mid'] < self.my_uid and not participant:
-            new_election_message = {
-                "mid": self.my_uid, 
-                "isLeader": False,
-                "IP": self.ip_address
-            }
-            participant = True
-            ringSocket.sendto(pickle.dumps(new_election_message),(neighbour,5892))
+            print("Waiting for Election Messages")
 
-        elif election_message['mid'] > self.my_uid:
-            participant = True
-            ringSocket.sendto(data,(neighbour,5892))
-        elif election_message['mid'] == self.my_uid:
-            self.leader = self.ip_address
-            self.is_leader = True
-            new_election_message = {
-                "mid": self.my_uid,
-                "isLeader": True,
-                "IP": self.ip_address
-            }
-            ringSocket.sendto(pickle.dumps(new_election_message),(neighbour,5892))
-            print("I AM LEADER")
-        
-        ringSocket.close()
-        if participant:
-            self.election(server)
+            data, adress = ringSocket.recvfrom(bufferSize)
+            election_message = pickle.loads(data)
+            print(election_message)
+
+            if election_message['isLeader']:
+                self.leader = election_message['IP']
+                print("Leader is: " + self.leader)
+                participant = False
+                ringSocket.sendto(data,(neighbour,5892))
+                ringSocket.close()
+                
+
+            if election_message['mid'] < self.my_uid and not participant:
+                new_election_message = {
+                    "mid": self.my_uid, 
+                    "isLeader": False,
+                    "IP": self.ip_address
+                }
+                participant = True
+                ringSocket.sendto(pickle.dumps(new_election_message),(neighbour,5892))
+
+            elif election_message['mid'] > self.my_uid:
+                participant = True
+                ringSocket.sendto(data,(neighbour,5892))
+            elif election_message['mid'] == self.my_uid:
+                self.leader = self.ip_address
+                self.is_leader = True
+                new_election_message = {
+                    "mid": self.my_uid,
+                    "isLeader": True,
+                    "IP": self.ip_address
+                }
+                ringSocket.sendto(pickle.dumps(new_election_message),(neighbour,5892))
+                print("I AM LEADER")
+                ringSocket.close()
+                
+            
+            ringSocket.close()
+            print("Leader is " + self.leader)
 
 
     def update_serverlist(self, server):
@@ -286,10 +310,10 @@ if __name__ == "__main__":
 
     s.join_Network(s)
     print(s.group_view)
-    #while True:
+   
     if s.is_leader == True:
-         #   s.accept_Join()
-          #  s.election()
+        #   s.accept_Join()
+        #  s.election()
             #s.accept_login()
         
     #     p_join = multiprocessing.Process(target = s.accept_Join, args = (s,))
@@ -303,16 +327,16 @@ if __name__ == "__main__":
     
         p_join = threading.Thread(target = s.accept_Join, args = (s,))
         p_join.start()
-       # p_join.join()
+    # p_join.join()
         p_login = threading.Thread(target = s.accept_login, args = (s,))
         p_login.start()
         p_election = threading.Thread(target = s.election, args = (s,))
         p_election.start()
-
+        #p_login.join()
 
 
     else:
-           
+        
         #s.update_clientlist()
         # p_groupviewUpdate = multiprocessing.Process(target = s.update_groupview, args = (s,))
         # p_groupviewUpdate.start()
@@ -326,3 +350,6 @@ if __name__ == "__main__":
         p_clientUpdate.start()
         p_election = threading.Thread(target = s.election, args = (s,))
         p_election.start()
+        p_groupviewUpdate.join()
+        p_clientUpdate.join()
+        p_election.join()
