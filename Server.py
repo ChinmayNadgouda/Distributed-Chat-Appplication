@@ -13,9 +13,9 @@ import threading
 
 import uuid
 
-localIP     = "192.168.9.226"
+localIP     = "172.20.10.2"
 
-BROADCAST_IP = "192.168.9.255" #needs to be reconfigured depending on network
+BROADCAST_IP = "172.20.10.15" #needs to be reconfigured depending on network
 
 localPort   = 10001
 
@@ -29,7 +29,7 @@ class Server():
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
-    ip_address = "192.168.9.226"
+    ip_address = "172.20.10.2"
     #server id
     server_id = "12012023_1919"
     #Unique Identifier
@@ -61,9 +61,9 @@ class Server():
 
 
 
-    def broadcastlistener(self, socket):
+    def broadcastlistener(self, socket, role):
 
-        print("Listening to broadcast messages")
+        print("Listening to broadcast messages for ",role )
         print(localIP)
         while True:
             data, server = socket.recvfrom(1024)
@@ -91,7 +91,7 @@ class Server():
                 UDPServerSocket.bind((localIP, localPort))
                 UDPServerSocket.settimeout(10)
                 print("Listening to client messages")
-                data = self.broadcastlistener(UDPServerSocket)
+                data = self.broadcastlistener(UDPServerSocket,'client')
                 UDPServerSocket.close()
                 userInformation = data.decode().split(',')
                 print(userInformation)
@@ -163,7 +163,8 @@ class Server():
             LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
             LeaderServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             LeaderServerSocket.bind((localIP, 5043))
-            newServerIP = self.broadcastlistener(LeaderServerSocket)
+            print('Listening to Server mesages')
+            newServerIP = self.broadcastlistener(LeaderServerSocket,'server')
             LeaderServerSocket.close()
             print(self.group_view)
             newServerID = max(self.group_view, key = lambda x:x['serverID'])['serverID'] + 1
