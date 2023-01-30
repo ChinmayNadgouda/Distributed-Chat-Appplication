@@ -13,9 +13,9 @@ import threading
 
 import uuid
 
-localIP     = "172.20.10.2"
+localIP     = "192.168.188.22"
 
-BROADCAST_IP = "172.20.10.15" #needs to be reconfigured depending on network
+BROADCAST_IP = "192.168.188.255" #needs to be reconfigured depending on network
 
 localPort   = 10001
 
@@ -29,7 +29,7 @@ class Server():
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
-    ip_address = "172.20.10.2"
+    ip_address = "192.168.188.22"
     #server id
     server_id = "12012023_1919"
     #Unique Identifier
@@ -88,7 +88,8 @@ class Server():
                 if self.is_leader == False:
                     return
                 UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-                UDPServerSocket.bind((localIP, localPort))
+                #UDPServerSocket.bind((localIP, localPort))
+                UDPServerSocket.bind(("0.0.0.0", localPort)) #changed_remove
                 UDPServerSocket.settimeout(10)
                 print("Listening to client messages")
                 data = self.broadcastlistener(UDPServerSocket,'client')
@@ -125,6 +126,7 @@ class Server():
     def broadcast(self, ip, port, broadcast_message):
         # Create a UDP socket
         broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1) #changed_remove
         # Send message on broadcast address
         broadcast_socket.sendto(broadcast_message.encode(), (ip, port))
         broadcast_socket.close()
@@ -162,7 +164,8 @@ class Server():
                     return
             LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
             LeaderServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            LeaderServerSocket.bind((localIP, 5043))
+            #LeaderServerSocket.bind((localIP, 5043))
+            LeaderServerSocket.bind(("0.0.0.0", 5043)) #changed_remove
             print('Listening to Server mesages')
             newServerIP = self.broadcastlistener(LeaderServerSocket,'server')
             LeaderServerSocket.close()
@@ -226,6 +229,8 @@ class Server():
         neighbour = self.get_neighbour(ring, self.ip_address,'left')
 
         ringSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        ringSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  #changed_remove
+        ringSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)  #changed_remove
         #ringSocket.bind((self.ip_address, 5892))
         message = pickle.dumps({"mid": self.my_uid, "isLeader": False, "IP": self.ip_address})
         ringSocket.sendto(message,(neighbour,5892))
@@ -235,6 +240,8 @@ class Server():
         while True:
             participant = False
             ringSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            ringSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) #changed_remove
+            ringSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1) #changed_remove
             ringSocket.bind((self.ip_address, 5892))
             self.update_serverlist(server)
             ring = self.form_ring(self.server_list)

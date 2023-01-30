@@ -6,12 +6,12 @@ import os
 
 broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-BROADCAST_IP = "192.168.0.255" #needs to be reconfigured depending on network
+BROADCAST_IP = "192.168.188.255" #needs to be reconfigured depending on network
 server_port = 10001
 bufferSize  = 1024
 #get own IP
 MY_HOST = socket.gethostname()
-MY_IP = "192.168.0.164" #socket.gethostbyname(MY_HOST)
+MY_IP = "192.168.188.22" #socket.gethostbyname(MY_HOST)
 
 def send_message(s_address, s_port):
     try:
@@ -39,6 +39,7 @@ def broadcast(ip, port, broadcast_message):
     # Create a UDP socket
     #broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     # Send message on broadcast address
+    broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)   #changed_remove
     broadcast_socket.sendto(str.encode(broadcast_message), (ip, port))
     #broadcast_socket.close()
 
