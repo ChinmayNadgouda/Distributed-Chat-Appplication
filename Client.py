@@ -53,7 +53,7 @@ def send_message(s_address, s_port, message_to_b_sent):
         # # message = run("python q2.py",capture_output=True)
 
         # Send data
-        client_socket.sendto(str.encode(message_to_b_sent+","+str(client_outport)+","+str(client_inport)), (s_address, s_port))
+        client_socket.sendto(str.encode(message_to_b_sent+","+str(client_outport)+","+str(client_inport)), (s_address, s_port))  #not needed
         print('Sent to server: ', message_to_b_sent,s_port)
     finally:
         client_socket.close()
