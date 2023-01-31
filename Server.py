@@ -19,7 +19,7 @@ localIP     = "192.168.188.22"
 
 BROADCAST_IP = "192.168.188.255" #needs to be reconfigured depending on network
 
-localPort   = 10001
+localPort   = 10001      #broadcast servers
 
 bufferSize  = 1024
 
@@ -32,9 +32,9 @@ from multiprocessing.pool import ThreadPool
 import threading
 
 leader_ip = "192.168.188.22"
-localPort_in   = 5002
-localPort_out = 5003
-local_server_port = 4443
+localPort_in   = 5002     #chat inroom
+localPort_out = 5003      #chat outroom
+local_server_port = 4443   #heartbeat
 
 
 
@@ -215,7 +215,7 @@ class Server():
         else:
             print("I AM LEADER!")
             self.is_leader = True
-            self.group_view.append({"serverID": 0, "IP" : self.ip_address, "inPorts": [5000], "outPorts": [5001], 'clients_handled':[]})
+            self.group_view.append({"serverID": 0, "IP" : self.ip_address, "inPorts": [5000], "outPorts": [5001], 'clients_handled':[],'heartbeat_port':4443})
             print(self.group_view)
         LeaderServerSocket.close()
     def ports_calc(self):
@@ -252,8 +252,9 @@ class Server():
             print(self.group_view)
             newServerID = max(self.group_view, key = lambda x:x['serverID'])['serverID'] + 1
             inports,outports = self.ports_calc()
-            newServer = {"serverID": newServerID, "IP" : newServerIP.decode(), "inPorts": inports, "outPorts": outports, 'clients_handled':[]}
+            newServer = {"serverID": newServerID, "IP" : newServerIP.decode(), "inPorts": inports, "outPorts": outports, 'clients_handled':[],'heartbeat_port':4444}
             self.group_view.append(newServer)
+            self.server_heatbeat_list[newServerID] = 0     #later make this ip
             message = pickle.dumps(self.group_view)
             print(message)
             self.sendto_allServers(server, message, 5044)
@@ -404,61 +405,56 @@ class Server():
         else:
             return None
     def heart_beat_recving(self):
-        while True:
-            leader_heartbeat = self.read_client(local_server_port,heartbeat_leader=False,heatbeat_server=True)
-            if leader_heartbeat:
-                if leader_heartbeat[1] == b'heartbeat':
-                    thread = threading.Thread(target=self.write_to_client, args=('heartbeat_recvd', leader_ip, local_server_port,))
-                    thread.start()
-                    thread.join()
-            else:
-                print('Leader is dead,start election')
-                print('Update groupview and election start')
-    def heart_beating(self):
-        while True:
-            time.sleep(10) #heartbeats after 60 seconds
-            for server in self.server_list:
 
-                server_addr = server.split(":")
-                server_ip = server_addr[0]
-                server_port = int(server_addr[1])
-                if server_ip != localIP:
-                    thread = threading.Thread(target=self.write_to_client,args=("heartbeat",server_ip,server_port,))
-                    thread.start()
-
-                    pool = ThreadPool(processes=1)
-
-                    async_result = pool.apply_async(self.read_client, (local_server_port,True,False))  # tuple of args for foo
-
-                    # do some other stuff in the main process
-
-                    listen_heartbeat = async_result.get()
-
-
-                    if listen_heartbeat:
-                        if listen_heartbeat[1] == b'heartbeat_recvd':
-                            print("Server {} is alive:".format(server_ip))
-                            self.server_heatbeat_list[server_ip] = 0
-                    else:
-                        if self.server_heatbeat_list[server_ip] > 3:
-                            print("Server {} is dead:".format(server_ip))
-                            print("Update Group view and Replicate its clients to new server, choose a new server all this at next heartbeat")
-                            self.server_heatbeat_list[server_ip] = 0
-                            #inform all other servers
-                            #redirect client to new server
-                        self.server_heatbeat_list[server_ip] = self.server_heatbeat_list[server_ip] + 1
-
-    def heartbeat_mechanism(self,serve):
-
-        if self.is_leader:
-            for server in self.server_list:
-
-                server_addr = server.split(":")
-                server_ip = server_addr[0]
-                self.server_heatbeat_list[server_ip] = 0
-            serve.heart_beating()
+        leader_heartbeat = self.read_client(4444,heartbeat_leader=False,heatbeat_server=True)
+        print(leader_heartbeat)
+        if leader_heartbeat:
+            if leader_heartbeat[1] == b'heartbeat':
+                thread = threading.Thread(target=self.write_to_client, args=('heartbeat_recvd', leader_ip, local_server_port,))
+                thread.start()
+                thread.join()
         else:
-            serve.heart_beat_recving()
+            print('Leader is dead,start election')
+            print('Update groupview and election start')
+    def heart_beating(self):
+        for server in self.group_view:
+            time.sleep(10) #heartbeats after 60 seconds
+
+            server_id = server['serverID']
+            server_ip = server['IP']
+            server_port = server['heartbeat_port']
+            if server_id != 0:
+                thread = threading.Thread(target=self.write_to_client,args=("heartbeat",server_ip,server_port,))
+                thread.start()
+
+                pool = ThreadPool(processes=1)
+
+                async_result = pool.apply_async(self.read_client, (local_server_port,True,False))  # tuple of args for foo
+
+                # do some other stuff in the main process
+
+                listen_heartbeat = async_result.get()
+
+
+                if listen_heartbeat:
+                    if listen_heartbeat[1] == b'heartbeat_recvd':
+                        print("Server {} is alive:".format(server_ip))
+                        self.server_heatbeat_list[server_id] = 0      #later make this ip
+                else:
+                    if self.server_heatbeat_list[server_id] > 3:   #later make this ip
+                        print("Server {} {} is dead:".format(server_ip,server_id))
+                        print("Update Group view and Replicate its clients to new server, choose a new server all this at next heartbeat")
+                        self.server_heatbeat_list[server_id] = 0   #later make this ip
+                        #inform all other servers
+                        #redirect client to new server
+                    self.server_heatbeat_list[server_id] = self.server_heatbeat_list[server_id] + 1     #later make this ip
+
+    def heartbeat_mechanism(self):
+        while True:   #shud this while loop be inside heartbeating
+            if self.is_leader:
+                self.heart_beating()    #should this start new thread
+            else:
+                self.heart_beat_recving()
 
         # get the messaged passed from clients ( have a message queue )
     def read_client(self, port, heartbeat_leader=False, heatbeat_server=False):
@@ -468,7 +464,7 @@ class Server():
                 if heartbeat_leader:
                     UDPServerSocket.settimeout(5)
                 if heatbeat_server:
-                    UDPServerSocket.settimeout(15)
+                    UDPServerSocket.settimeout(35)
                 UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
                 UDPServerSocket.bind((localIP, port))
@@ -633,6 +629,8 @@ if __name__ == "__main__":
         if s.is_leader == True:
             p_join = threading.Thread(target = s.accept_Join, args = (s,))
             p_join.start()
+            p_heart = threading.Thread(target= s.heartbeat_mechanism, args=())
+            p_heart.start()
             p_login = threading.Thread(target = s.accept_login, args = (s,))
             p_login.start()
             p_election = threading.Thread(target = s.election, args = (s,))
@@ -640,9 +638,12 @@ if __name__ == "__main__":
             p_login.join()
             p_join.join()
             p_election.join()
+            p_heart.join()
         else:
             p_groupviewUpdate = threading.Thread(target = s.update_groupview, args = (s,))
             p_groupviewUpdate.start()
+            p_heart_s = threading.Thread(target=s.heartbeat_mechanism, args=())
+            p_heart_s.start()
             p_clientUpdate = threading.Thread(target = s.update_clientlist, args = (s,))
             p_clientUpdate.start()
             p_election = threading.Thread(target = s.election, args = (s,))
@@ -654,6 +655,7 @@ if __name__ == "__main__":
             p_clientUpdate.join()
             p_election.join()
             p_chat.join()
+            p_heart_s.join()
 
 
 
