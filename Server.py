@@ -15,9 +15,9 @@ import threading
 
 import uuid
 
-localIP     = "192.168.43.236"
+localIP     = "192.168.129.9"
 
-BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
+BROADCAST_IP = "192.168.129.255" #needs to be reconfigured depending on network
 
 localPort   = 10001      #broadcast servers
 
@@ -31,7 +31,7 @@ import multiprocessing
 from multiprocessing.pool import ThreadPool
 import threading
 
-leader_ip = "192.168.43.236"
+leader_ip = "192.168.129.9"
 localPort_in   = 5002     #chat inroom
 localPort_out = 5003      #chat outroom
 local_server_port = 4443   #heartbeat
@@ -68,7 +68,7 @@ class Server():
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
-    ip_address = "192.168.43.236"
+    ip_address = "192.168.129.9"
     #server id
     server_id = "12012023_1919"
     #Unique Identifier
@@ -424,6 +424,7 @@ class Server():
         print(leader_heartbeat)
         if leader_heartbeat:
             if leader_heartbeat[1] == b'heartbeat':
+                time.sleep(1)
                 thread = threading.Thread(target=self.write_to_client, args=('heartbeat_recvd', self.leader, local_server_port,))    #fix localserverport to leader heartbeat
                 thread.start()
                 thread.join()
@@ -445,7 +446,7 @@ class Server():
 
     def heart_beating(self):
         for server in self.group_view:
-            time.sleep(10) #heartbeats after 60 seconds
+            #time.sleep(10) #heartbeats after 60 seconds
 
             server_id = server['serverID']
             server_ip = server['IP']
@@ -487,11 +488,16 @@ class Server():
                         min_cli = 10000
 
                         for servers in self.group_view:
+                            if clients_transfered == True:
+                                break
+                            if servers['IP'] == self.leader:
+                                continue
                             for chatrooms in servers['chatrooms_handled']:
                                 print(chatrooms)
                                 if len(chatrooms['clients_handled']) == 0:
                                     servers['chatrooms_handled'].append(new_chatroom[0])  #later can be multiple chatrooms so just loop
                                     new_server_ip = servers['IP']
+                                    clients_transfered = True
                                     continue
                                 else:
                                     min_cli = min(len(chatrooms['clients_handled']),min_cli)
@@ -530,7 +536,7 @@ class Server():
                 if heartbeat_leader:
                     UDPServerSocket.settimeout(5)
                 if heatbeat_server:
-                    UDPServerSocket.settimeout(35)
+                    UDPServerSocket.settimeout(60)
                 if chatroom_timeout:
                     UDPServerSocket.settimeout(5)
                 UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

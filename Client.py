@@ -9,12 +9,12 @@ import os
 #client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  #changed_remove
 import threading
 
-BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
+BROADCAST_IP = "192.168.129.255" #needs to be reconfigured depending on network
 server_port = 10001
 bufferSize  = 1024
 #get own IP
 MY_HOST = socket.gethostname()
-MY_IP = "192.168.43.236" #socket.gethostbyname(MY_HOST)
+MY_IP = "192.168.129.9" #socket.gethostbyname(MY_HOST)
 local_ip = MY_IP
 client_inport = 5566
 client_outport = 5565
