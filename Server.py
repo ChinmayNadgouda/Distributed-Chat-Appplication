@@ -16,7 +16,7 @@ import threading
 
 import uuid
 
-localIP     = "192.168.43.205"
+localIP     = "192.168.43.235"
 
 BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
 
@@ -32,7 +32,7 @@ import multiprocessing
 from multiprocessing.pool import ThreadPool
 import threading
 
-leader_ip = "192.168.43.236"
+leader_ip = "192.168.43.235"
 localPort_in   = 5002     #chat inroom
 localPort_out = 5003      #chat outroom
 local_server_port = 4443   #heartbeat
@@ -69,7 +69,7 @@ class Server():
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
-    ip_address = "192.168.43.205"
+    ip_address = "192.168.43.235"
     #server id
     server_id = "12012023_1919"
     #Unique Identifier
@@ -150,7 +150,7 @@ class Server():
                 UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
                 # UDPServerSocket.bind((localIP, localPort))
                 UDPServerSocket.bind((localIP, localPort))  # changed_remove
-                #UDPServerSocket.settimeout(10)
+                UDPServerSocket.settimeout(10)
                 print("Listening to client messages response to join chatroom")
                 data = self.broadcastlistener(UDPServerSocket, 'client')
                 UDPServerSocket.close()
@@ -490,14 +490,16 @@ class Server():
                         self.group_view = new_group_view
                         min_cli = 10000
                         clients_transfered = False
+
+                        for servers in self.group_view:
+                            for chatrooms in servers['chatrooms_handled']:
+                                min_cli = min(len(chatrooms['clients_handled']),min_cli)
                         for servers in self.group_view:
                             if clients_transfered == True:
                                 break
-                            if servers['serverID'] == 0:
-                                continue
                             for chatrooms in servers['chatrooms_handled']:
                                 print(chatrooms)
-                                if len(chatrooms['clients_handled']) == 0:
+                                if len(chatrooms['clients_handled']) == min_cli:
                                     servers['chatrooms_handled'].append(new_chatroom[0])  #later can be multiple chatrooms so just loop
                                     new_server_ip = servers['IP']
                                     clients_transfered = True
