@@ -16,7 +16,7 @@ import threading
 
 import uuid
 
-localIP     = "192.168.43.236"
+localIP     = "192.168.43.205"
 
 BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
 
@@ -69,7 +69,7 @@ class Server():
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
-    ip_address = "192.168.43.236"
+    ip_address = "192.168.43.205"
     #server id
     server_id = "12012023_1919"
     #Unique Identifier
@@ -636,13 +636,13 @@ class Server():
             while True:
 
                 for servers in self.group_view:
-                    if servers['IP'] == self.ip_address and servers['serverID'] == 1:  # not needed
+                    if servers['IP'] == self.ip_address:  # not needed
                         self.chatrooms_handled = servers['chatrooms_handled']
 
 
                         for chatrooms in self.chatrooms_handled:
                             if len(chatrooms['clients_handled']) == 0:
-                                break
+                                continue
                             current_chatroom = chatrooms
 
                             clients_for_this_room = chatrooms['clients_handled']
@@ -653,7 +653,7 @@ class Server():
 
                         for chatrooms in self.chatrooms_handled:
                             if len(chatrooms['clients_handled']) == 0:
-                                break
+                                continue
                             p_room.join()
         except AttributeError:
                 print("heer")
@@ -663,14 +663,14 @@ class Server():
         #print('starting chatroom for : ', clients_handled)
         for chatroom in self.chatrooms_handled:
             if len(chatroom['clients_handled']) == 0:
-                                break
+                                continue
             for client in chatroom['clients_handled']:
                 p_chat = threading.Thread(target=self.write_to_chatroom, args=(chatrooms,chatroom_inport,chatroom_outport,))
                 p_chat.start()
 
         for chatroom in self.chatrooms_handled:
             if len(chatroom['clients_handled']) == 0:
-                                break
+                                continue
             for client in chatroom['clients_handled']:
                 p_chat.join()
     def write_to_chatroom(self,chatrooms,chatroom_inport,chatroom_outport):
