@@ -535,13 +535,14 @@ class Server():
 
     def heartbeat_mechanism(self):
         while True:   #shud this while loop be inside heartbeating
-            for server in self.group_view:
-                self.server_heatbeat_list[server['IP']] = 0
+            
             if self.is_leader:
-                self.heart_beating()    #should this start new thread
+                is_leader = self.heart_beating()    #should this start new thread
             else:
                 is_leader = self.heart_beat_recving()
                 if is_leader:
+                    for server in self.group_view:
+                        self.server_heatbeat_list[server['IP']] = 0
                     return
 
         # get the messaged passed from clients ( have a message queue )
@@ -752,8 +753,8 @@ if __name__ == "__main__":
     s.join_Network(s)
     print(s.group_view)
 
-    p_H = threading.Thread(target=heartbeats, args=())
-    p_H.start()
+    # p_H = threading.Thread(target=heartbeats, args=())
+    # p_H.start()
 
     while True:
         if s.is_leader == True:
@@ -765,7 +766,9 @@ if __name__ == "__main__":
             p_election.start()
             p_chat = threading.Thread(target=s.collect_chatrooms, args=())
             p_chat.start()
-
+            p_heart = threading.Thread(target=s.heartbeat_mechanism, args=())
+            p_heart.start()
+            p_heart.join()
 
             p_login.join()
             p_join.join()
@@ -783,6 +786,10 @@ if __name__ == "__main__":
 
             p_chat = threading.Thread(target=s.collect_chatrooms, args=())
             p_chat.start()
+            p_heart = threading.Thread(target=s.heartbeat_mechanism, args=())
+            p_heart.start()
+            p_heart.join()
+            
             p_groupviewUpdate.join()
             p_clientUpdate.join()
             p_election.join()
