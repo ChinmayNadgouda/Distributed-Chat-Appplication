@@ -16,7 +16,7 @@ import threading
 
 import uuid
 
-localIP     = "192.168.43.235"
+localIP     = "192.168.43.236"
 
 BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
 
@@ -32,7 +32,7 @@ import multiprocessing
 from multiprocessing.pool import ThreadPool
 import threading
 
-leader_ip = "192.168.43.235"
+leader_ip = "192.168.43.236"
 localPort_in   = 5002     #chat inroom
 localPort_out = 5003      #chat outroom
 local_server_port = 4443   #heartbeat
@@ -69,7 +69,7 @@ class Server():
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
-    ip_address = "192.168.43.235"
+    ip_address = "192.168.43.236"
     #server id
     server_id = "12012023_1919"
     #Unique Identifier
@@ -442,10 +442,14 @@ class Server():
                 else:
                     new_group_view.append(server)
             self.group_view = new_group_view
+            new_group_view = pickle.dumps(new_group_view)
             self.sendto_allServers(dummy_server,new_group_view,5044)
             self.start_election(dummy_server)
             if self.is_leader:
                 return True
+            else:
+                time.sleep(10)
+                return False
 
     def heart_beating(self):
         for server in self.group_view:
@@ -454,7 +458,7 @@ class Server():
             server_id = server['serverID']
             server_ip = server['IP']
             server_port = server['heartbeat_port']
-            if server_id != 0:
+            if server_ip != self.leader:
                 thread = threading.Thread(target=self.write_to_client,args=("heartbeat",server_ip,server_port,))
                 thread.start()
 
@@ -470,18 +474,18 @@ class Server():
                 if listen_heartbeat:
                     if listen_heartbeat[1] == b'heartbeat_recvd':
                         print("Server {} is alive:".format(server_ip))
-                        self.server_heatbeat_list[server_id] = 0      #later make this ip
+                        self.server_heatbeat_list[server_ip] = 0      #later make this ip
                 else:
-                    if self.server_heatbeat_list[server_id] > 1:   #later make this ip and change to 3 tries i.e 2
+                    if self.server_heatbeat_list[server_ip] > 1:   #later make this ip and change to 3 tries i.e 2
                         print("Server {} {} is dead:".format(server_ip,server_id))
                         print("Update Group view and Replicate its clients to new server, choose a new server all this at next heartbeat")
-                        self.server_heatbeat_list[server_id] = 0   #later make this ip
+                        self.server_heatbeat_list[server_ip] = 0   #later make this ip
                         #inform all other servers
                         new_group_view = []
                         new_client_list = None
                         dummy_server = None
                         for server in self.group_view:
-                            if server['serverID'] == server_id:
+                            if server['IP'] == server_ip:
                                 new_chatroom = server['chatrooms_handled']
                                 pass
                             else:
@@ -522,7 +526,7 @@ class Server():
                         new_group_view = pickle.dumps(self.group_view)
                         self.sendto_allServers(dummy_server, new_group_view, 5044)
                         self.send_to_clients_new_server(new_chatroom[0],new_server_ip)
-                    self.server_heatbeat_list[server_id] = self.server_heatbeat_list[server_id] + 1     #later make this ip
+                    self.server_heatbeat_list[server_ip] = self.server_heatbeat_list[server_ip] + 1     #later make this ip
 
     def heartbeat_mechanism(self):
         while True:   #shud this while loop be inside heartbeating
@@ -541,7 +545,7 @@ class Server():
                 if heartbeat_leader:
                     UDPServerSocket.settimeout(5)
                 if heatbeat_server:
-                    UDPServerSocket.settimeout(60)
+                    UDPServerSocket.settimeout(5)
                 if chatroom_timeout:
                     UDPServerSocket.settimeout(5)
                 UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
