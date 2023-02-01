@@ -16,7 +16,7 @@ import threading
 
 import uuid
 
-localIP     = "192.168.129.226"
+localIP     = "192.168.129.9"
 
 BROADCAST_IP = "192.168.129.255" #needs to be reconfigured depending on network
 
@@ -32,7 +32,7 @@ import multiprocessing
 from multiprocessing.pool import ThreadPool
 import threading
 
-leader_ip = "192.168.129.226"
+leader_ip = "192.168.129.9"
 localPort_in   = 5002     #chat inroom
 localPort_out = 5003      #chat outroom
 local_server_port = 4443   #heartbeat
@@ -69,7 +69,7 @@ class Server():
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
-    ip_address = "192.168.129.226"
+    ip_address = "192.168.129.9"
     #server id
     server_id = "12012023_1919"
     #Unique Identifier
