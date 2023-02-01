@@ -16,7 +16,7 @@ import threading
 
 import uuid
 
-localIP     = "192.168.43.236"
+localIP     = "192.168.43.205"
 
 BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
 
@@ -32,7 +32,7 @@ import multiprocessing
 from multiprocessing.pool import ThreadPool
 import threading
 
-leader_ip = "192.168.43.236"
+leader_ip = "192.168.43.205"
 localPort_in   = 5002     #chat inroom
 localPort_out = 5003      #chat outroom
 local_server_port = 4443   #heartbeat
@@ -69,7 +69,7 @@ class Server():
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
-    ip_address = "192.168.43.236"
+    ip_address = "192.168.43.205"
     #server id
     server_id = "12012023_1919"
     #Unique Identifier
@@ -222,6 +222,7 @@ class Server():
 
         else:
             print("I AM LEADER!")
+            self.leader = self.ip_address
             self.is_leader = True
             self.group_view.append({"serverID": 0, "IP" : self.ip_address, "chatrooms_handled" : [{"inPorts": [5000], "outPorts": [5001], 'clients_handled':[]}],'heartbeat_port':4443})
             print(self.group_view)
@@ -260,7 +261,7 @@ class Server():
             inports,outports = self.ports_calc()
             newServer = {"serverID": newServerID, "IP" : newServerIP.decode(),"chatrooms_handled" : [{"inPorts": inports, "outPorts": outports, 'clients_handled':[]}],'heartbeat_port':4444}
             self.group_view.append(newServer)
-            self.server_heatbeat_list[newServerID] = 0     #later make this ip
+            self.server_heatbeat_list[newServerIP] = 0     #later make this ip
             message = pickle.dumps(self.group_view)
             print(message)
             self.sendto_allServers(server, message, 5044)
@@ -396,6 +397,8 @@ class Server():
 
 
     def update_serverlist(self, server):
+        self.server_list = []
+
         for i in self.group_view:
             self.server_list.append(i['IP'])
         self.server_list = list(dict.fromkeys(self.server_list))
@@ -454,6 +457,8 @@ class Server():
     def heart_beating(self):
         for server in self.group_view:
             #time.sleep(10) #heartbeats after 60 seconds
+            if self.is_leader == False:
+                return
 
             server_id = server['serverID']
             server_ip = server['IP']
@@ -530,6 +535,8 @@ class Server():
 
     def heartbeat_mechanism(self):
         while True:   #shud this while loop be inside heartbeating
+            for server in self.group_view:
+                self.server_heatbeat_list[server['IP']] = 0
             if self.is_leader:
                 self.heart_beating()    #should this start new thread
             else:
