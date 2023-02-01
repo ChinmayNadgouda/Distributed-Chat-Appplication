@@ -44,6 +44,7 @@ def chatroom_output():
     #send_message(server_ip, inport,"client_id"+",join,"+str(inport)+","+"join")
     while True:
         data = recieve_message(client_outport)
+        print('Listening to server',server_ip)
         if data:
             send_message(server_ip, server_outport,"client_id"+",recvd,"+str(server_inport)+","+"recvd")
             #data_ack2 = recieve_message()

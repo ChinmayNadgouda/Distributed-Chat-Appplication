@@ -7,6 +7,7 @@ import json
 import time
 #from broadcastlistener import broadcast_listener
 #neu
+#import netifaces
 import select
 import pickle
 import multiprocessing
@@ -672,7 +673,7 @@ class Server():
                 p_chat.join()
     def write_to_chatroom(self,chatrooms,chatroom_inport,chatroom_outport):
         while True:
-            #print("Now sdfsdf    here",chatroom_inport)
+            print("Now sdfsdf    here",chatroom_inport)
             bytesAddressPair = self.read_client(chatroom_inport,True)  # localPort_in for each chatroom
             if bytesAddressPair == False:
                 return
