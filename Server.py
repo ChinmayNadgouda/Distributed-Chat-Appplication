@@ -15,7 +15,7 @@ import threading
 
 import uuid
 
-localIP     = "192.168.188.22"
+localIP     = "192.168.43.85"
 
 BROADCAST_IP = "192.168.188.255" #needs to be reconfigured depending on network
 
@@ -31,7 +31,7 @@ import multiprocessing
 from multiprocessing.pool import ThreadPool
 import threading
 
-leader_ip = "192.168.188.22"
+leader_ip = "192.168.43.85"
 localPort_in   = 5002     #chat inroom
 localPort_out = 5003      #chat outroom
 local_server_port = 4443   #heartbeat
@@ -68,7 +68,7 @@ class Server():
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
-    ip_address = "192.168.188.22"
+    ip_address = "192.168.43.85"
     #server id
     server_id = "12012023_1919"
     #Unique Identifier
@@ -156,7 +156,14 @@ class Server():
                 userSelection = pickle.loads(data)
                 #print(userSelection)
                 selected_server_id = userSelection['selected_server']
-                self.group_view[int(selected_server_id)]['clients_handled'].append(json.dumps(userSelection))
+                selected_charoom = userSelection['selected_chatroom']
+                for chatrooms in self.group_view[int(selected_server_id)]['chatrooms_handled']:
+                    if chatrooms['inPorts'][0] == selected_charoom:
+                        new_chatroom_clients = []
+                        for clients in chatrooms['clients_handled']:
+                            new_chatroom_clients.append(clients)
+                        new_chatroom_clients.append(json.dumps(userSelection))
+                        chatrooms['clients_handled'] = set(new_chatroom_clients)
                 #self.server_list[userInformation]['clients_handled'] = []
                 #self.server_list[userInformation]['clients_handled'].append()
                 #self.group_view[int(selected_server_id)]['clients_handled'] = set(self.group_view[int(selected_server_id)]['clients_handled'])
@@ -167,10 +174,10 @@ class Server():
 
                 message = pickle.dumps(self.group_view)
                 print(self.group_view)
-                for val in set(self.group_view[0]['clients_handled']):
+                for val in set(self.group_view[1]['chatrooms_handled'][0]['clients_handled']):
                     print('test client sets',type(json.loads(val)))
                 self.sendto_allServers(server, message, 5044)  #all servers will get this and update their groupview and set clients
-                self.send_Message(userSelection['IP'], b"please now connect to the server assigned")
+                self.send_Message(userSelection['IP'], b"please now connect to the server assigned and chatroom")
                 #await chatID from Client
                 #self.clientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
                 #self.clientSocket.bind((localIP, 5001))
@@ -215,18 +222,16 @@ class Server():
         else:
             print("I AM LEADER!")
             self.is_leader = True
-            self.group_view.append({"serverID": 0, "IP" : self.ip_address, "inPorts": [5000], "outPorts": [5001], 'clients_handled':[],'heartbeat_port':4443})
+            self.group_view.append({"serverID": 0, "IP" : self.ip_address, "chatrooms_handled" : [{"inPorts": [5000], "outPorts": [5001], 'clients_handled':[]}],'heartbeat_port':4443})
             print(self.group_view)
         LeaderServerSocket.close()
     def ports_calc(self):
         current_ports = []
         for server in self.group_view:
-            inports_server = server['inPorts']
-            outports_server = server['outPorts']
-            for in_ports in inports_server:
-                current_ports.append(in_ports)
-            for out_ports in outports_server:
-                current_ports.append(out_ports)
+            for chatrooms in server['chatrooms_handled']:
+                current_ports.append(chatrooms['inPorts'][0])
+                current_ports.append(chatrooms['outPorts'][0])
+
         if len(current_ports) == 0:
             new_inport = 5000
             new_outport = 5001
@@ -252,7 +257,7 @@ class Server():
             print(self.group_view)
             newServerID = max(self.group_view, key = lambda x:x['serverID'])['serverID'] + 1
             inports,outports = self.ports_calc()
-            newServer = {"serverID": newServerID, "IP" : newServerIP.decode(), "inPorts": inports, "outPorts": outports, 'clients_handled':[],'heartbeat_port':4444}
+            newServer = {"serverID": newServerID, "IP" : newServerIP.decode(),"chatrooms_handled" : [{"inPorts": inports, "outPorts": outports, 'clients_handled':[]}],'heartbeat_port':4444}
             self.group_view.append(newServer)
             self.server_heatbeat_list[newServerID] = 0     #later make this ip
             message = pickle.dumps(self.group_view)
@@ -261,6 +266,15 @@ class Server():
             LeaderServerSocket.close()
             if self.is_leader == False:
                 return
+    def send_to_clients_new_server(self,chatroom,new_server_ip):
+        for clients in chatroom['clients_handled']:
+            cur_client = json.loads(clients)
+            client_ip = cur_client['IP']
+            client_port = 10002 #fixed port for always listen
+            UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+            UDPServerSocket.sendto(new_server_ip.encode(), (client_ip, client_port))
+            UDPServerSocket.close()
+
 
     def sendto_allServers(self, server, message, port):
         #Port 5044: Groupview, Port 5045: Clientlist 
@@ -406,16 +420,29 @@ class Server():
             return None
     def heart_beat_recving(self):
 
-        leader_heartbeat = self.read_client(4444,heartbeat_leader=False,heatbeat_server=True)
+        leader_heartbeat = self.read_client(4444,heartbeat_leader=False,heatbeat_server=True)    #fix this port to own heartbeat port
         print(leader_heartbeat)
         if leader_heartbeat:
             if leader_heartbeat[1] == b'heartbeat':
-                thread = threading.Thread(target=self.write_to_client, args=('heartbeat_recvd', leader_ip, local_server_port,))
+                thread = threading.Thread(target=self.write_to_client, args=('heartbeat_recvd', self.leader, local_server_port,))    #fix localserverport to leader heartbeat
                 thread.start()
                 thread.join()
         else:
             print('Leader is dead,start election')
             print('Update groupview and election start')
+            new_group_view = []
+            dummy_server = None
+            for server in self.group_view:
+                if server['IP'] == self.leader:
+                    pass
+                else:
+                    new_group_view.append(server)
+            self.group_view = new_group_view
+            self.sendto_allServers(dummy_server,new_group_view,5044)
+            self.start_election(dummy_server)
+            if self.is_leader:
+                return True
+
     def heart_beating(self):
         for server in self.group_view:
             time.sleep(10) #heartbeats after 60 seconds
@@ -441,12 +468,49 @@ class Server():
                         print("Server {} is alive:".format(server_ip))
                         self.server_heatbeat_list[server_id] = 0      #later make this ip
                 else:
-                    if self.server_heatbeat_list[server_id] > 3:   #later make this ip
+                    if self.server_heatbeat_list[server_id] > 1:   #later make this ip and change to 3 tries i.e 2
                         print("Server {} {} is dead:".format(server_ip,server_id))
                         print("Update Group view and Replicate its clients to new server, choose a new server all this at next heartbeat")
                         self.server_heatbeat_list[server_id] = 0   #later make this ip
                         #inform all other servers
+                        new_group_view = []
+                        new_client_list = None
+                        dummy_server = None
+                        for server in self.group_view:
+                            if server['serverID'] == server_id:
+                                new_chatroom = server['chatrooms_handled']
+                                pass
+                            else:
+                                new_group_view.append(server)
+
+                        self.group_view = new_group_view
+                        min_cli = 10000
+
+                        for servers in self.group_view:
+                            for chatrooms in servers['chatrooms_handled']:
+                                print(chatrooms)
+                                if len(chatrooms['clients_handled']) == 0:
+                                    servers['chatrooms_handled'].append(new_chatroom[0])  #later can be multiple chatrooms so just loop
+                                    new_server_ip = servers['IP']
+                                    continue
+                                else:
+                                    min_cli = min(len(chatrooms['clients_handled']),min_cli)
+                        # if min_cli != 10000:
+                        #     for servers in self.group_view:
+                        #         for chatrooms in servers['chatrooms_handled']:
+                        #             if len(chatrooms['clients_handled']) == min_cli:
+                        #                 servers['chatrooms_handled'].append(new_chatroom)
+                        #                 new_server_ip = servers['IP']
+                        #                 continue
+
+
+                        #logic to select new sever and append client list
                         #redirect client to new server
+                        print(new_client_list)
+                        print(self.group_view)
+                        new_group_view = pickle.dumps(self.group_view)
+                        self.sendto_allServers(dummy_server, new_group_view, 5044)
+                        self.send_to_clients_new_server(new_chatroom[0],new_server_ip)
                     self.server_heatbeat_list[server_id] = self.server_heatbeat_list[server_id] + 1     #later make this ip
 
     def heartbeat_mechanism(self):
@@ -454,7 +518,9 @@ class Server():
             if self.is_leader:
                 self.heart_beating()    #should this start new thread
             else:
-                self.heart_beat_recving()
+                is_leader = self.heart_beat_recving()
+                if is_leader:
+                    return
 
         # get the messaged passed from clients ( have a message queue )
     def read_client(self, port, heartbeat_leader=False, heatbeat_server=False):
@@ -467,6 +533,7 @@ class Server():
                     UDPServerSocket.settimeout(35)
                 UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+                print("heree {}".format(port))
                 UDPServerSocket.bind((localIP, port))
                 # keep listening and get the message from clinet
                 bytesAddressPair = UDPServerSocket.recvfrom(bufferSize)
@@ -491,7 +558,6 @@ class Server():
 
     def write_to_client(self, server_message, client_ip, client_port):
         # Sending a reply to client
-        UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         # UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         # UDPServerSocket.bind((client_ip, client_port))
         bytesToSend = str.encode(server_message)
@@ -503,9 +569,8 @@ class Server():
         return True
         # pass
 
-    def write_to_client_with_ack(self, server_message, client_ip, client_port, from_client_ip):
+    def write_to_client_with_ack(self, server_message, client_ip, client_port, from_client_ip,chatroom_inport,chatroom_outport):
         # Sending a reply to client
-        UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         # UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         # UDPServerSocket.bind((client_ip, client_port))
         bytesToSend = str.encode(server_message)
@@ -526,7 +591,7 @@ class Server():
         # print("timout",ack_thread)
 
         # create a new thread
-        thread = CustomThread(localPort_out)
+        thread = CustomThread(chatroom_outport)
         # start the thread
         thread.start()
         # wait for the thread to finish
@@ -536,7 +601,7 @@ class Server():
         if ack_thread:
             ackkkk = ack_thread[1].split(b',')
             if ackkkk[1] == b'recvd':
-                self.ack_counter[from_client_ip][localPort_in] = self.ack_counter[from_client_ip][localPort_in] + 1
+                self.ack_counter[from_client_ip][chatroom_inport] = self.ack_counter[from_client_ip][chatroom_inport] + 1
         else:
             # remove clinet from client list
             pass
@@ -555,60 +620,73 @@ class Server():
         client_port = data_list[-1]
         return [client_id, client_req, chatroom_id, client_message, client_port_out, client_port]
 
+    def collect_chatrooms(self):
+        try:
+            while True:
 
-    def collect_clients(self):
+                for servers in self.group_view:
+                    if servers['IP'] == self.ip_address and servers['serverID'] == 1:  # not needed
+                        self.chatrooms_handled = servers['chatrooms_handled']
+
+
+                        for chatrooms in self.chatrooms_handled:
+                            if len(chatrooms['clients_handled']) == 0:
+                                break
+                            current_chatroom = chatrooms
+
+                            clients_for_this_room = current_chatroom['clients_handled']
+                            chatroom_inport = current_chatroom['inPorts'][0]
+                            chatroom_outport = current_chatroom['outPorts'][0]
+                            p_room = multiprocessing.Process(target=self.collect_clients,args=(clients_for_this_room,chatroom_inport,chatroom_outport))
+                            p_room.start()
+
+                        for chatrooms in self.chatrooms_handled:
+                            if len(chatrooms['clients_handled']) == 0:
+                                break
+                            p_room.join()
+        except AttributeError:
+                print("heer")
+
+
+    def collect_clients(self,clients_handled,chatroom_inport,chatroom_outport):
+        print('starting chatroom for : ', clients_handled)
+        for client in clients_handled:
+            p_chat = multiprocessing.Process(target=self.write_to_chatroom, args=(clients_handled,chatroom_inport,chatroom_outport,))
+            p_chat.start()
+
+        for client in self.clients_handled:
+            p_chat.join()
+    def write_to_chatroom(self,clients_handled,chatroom_inport,chatroom_outport):
         while True:
-            for servers in self.group_view:
-                if servers['IP'] == self.ip_address and servers['serverID'] != 0:   #not needed
-                    if(len(servers['clients_handled']) == 0):
-                        break
-                    self.clients_handled = set(servers['clients_handled'])
-                    print('starting chatroom',self.clients_handled)
-                    continue
-            for client in self.clients_handled:
-                print('starting chatroom', self.clients_handled)
-                p_chat = multiprocessing.Process(target=self.write_to_chatroom, args=())
-                p_chat.start()
-
-            for client in self.clients_handled:
-                p_chat.join()
-    def write_to_chatroom(self):
-        while True:
-            bytesAddressPair = self.read_client(localPort_in)  # localPort_in for each chatroom
-
-            print(bytesAddressPair)
+            print("Now sdfsdf    here",chatroom_inport)
+            bytesAddressPair = self.read_client(chatroom_inport)  # localPort_in for each chatroom
+            print("Message in chatroom {} from {}".format(chatroom_inport,bytesAddressPair))
             message_from_client = bytesAddressPair[1].decode('utf-8')
 
             # callvector_check
             # print(type(message_from_client),"tt")
+
             from_client_ip = bytesAddressPair[0][0]
-            print(from_client_ip)
             client_id, data, chatroom_id, message, from_port, from_inport = self.parse_client_message(
                 message_from_client)
-            print('D', data)
-            #if message == 'join':
-            #     self.clients_handled.append(from_client_ip + ":" + from_port + ":" + from_inport)
-            #     clients_set = set(self.clients_handled)
-            #     print("hrr")
-            #   continue
+
 
             self.ack_counter[from_client_ip] = {}
-            self.ack_counter[from_client_ip][localPort_in] = 0
-            print("ACKcount_b2", self.ack_counter[from_client_ip][localPort_in])
-            for client in self.clients_handled:
+            self.ack_counter[from_client_ip][chatroom_inport] = 0
+            print("ACKcount_b2", self.ack_counter[from_client_ip][chatroom_inport])
+            for client in clients_handled:
                 actual_client = json.loads(client)
                 to_client_ip = actual_client['IP']
-
                 to_client_port = actual_client['outPorts']
                 to_client_port_ack = actual_client['inPorts']  # same as from_inport
                 # if to_client_ip == from_client_ip and to_client_port_ack == from_inport:   #notneeded
                 #     sender_inport = to_client_port_ack
                 thread = threading.Thread(target=self.write_to_client_with_ack,
-                                          args=(message, to_client_ip, to_client_port, from_client_ip,))
+                                          args=(message, to_client_ip, to_client_port, from_client_ip,chatroom_inport,chatroom_outport,))
                 thread.start()
                 thread.join()
-            print("ACKcount_a", self.ack_counter[from_client_ip][localPort_in])
-            if self.ack_counter[from_client_ip][localPort_in] == len(self.clients_handled):
+            print("ACKcount_a", self.ack_counter[from_client_ip][chatroom_inport])
+            if self.ack_counter[from_client_ip][chatroom_inport] == len(self.clients_handled):
                 # for all clinets send sent!
                 thread = threading.Thread(target=self.write_to_client,
                                           args=("sent", from_client_ip, int(from_inport),))
@@ -619,43 +697,62 @@ class Server():
                                           args=("resend", from_client_ip, int(from_inport),))
                 thread.start()
                 thread.join()
+
+
+def heartbeats():
+    while True:
+        if s.is_leader == True:
+            p_heart = threading.Thread(target=s.heartbeat_mechanism, args=())
+            p_heart.start()
+            p_heart.join()
+        else:
+            p_heart_s = threading.Thread(target=s.heartbeat_mechanism, args=())
+            p_heart_s.start()
+            p_heart_s.join()
+
 if __name__ == "__main__":
     #create Server
     s = Server()
 
     s.join_Network(s)
     print(s.group_view)
+
+    p_H = threading.Thread(target=heartbeats, args=())
+    p_H.start()
+
     while True:
         if s.is_leader == True:
             p_join = threading.Thread(target = s.accept_Join, args = (s,))
             p_join.start()
-            p_heart = threading.Thread(target= s.heartbeat_mechanism, args=())
-            p_heart.start()
             p_login = threading.Thread(target = s.accept_login, args = (s,))
             p_login.start()
             p_election = threading.Thread(target = s.election, args = (s,))
             p_election.start()
+            p_chat = threading.Thread(target=s.collect_chatrooms, args=())
+            p_chat.start()
+
+
             p_login.join()
             p_join.join()
             p_election.join()
-            p_heart.join()
+            p_chat.join()
+
         else:
             p_groupviewUpdate = threading.Thread(target = s.update_groupview, args = (s,))
             p_groupviewUpdate.start()
-            p_heart_s = threading.Thread(target=s.heartbeat_mechanism, args=())
-            p_heart_s.start()
+
             p_clientUpdate = threading.Thread(target = s.update_clientlist, args = (s,))
             p_clientUpdate.start()
             p_election = threading.Thread(target = s.election, args = (s,))
             p_election.start()
 
-            p_chat = multiprocessing.Process(target=s.collect_clients, args=())
+            p_chat = threading.Thread(target=s.collect_chatrooms, args=())
             p_chat.start()
             p_groupviewUpdate.join()
             p_clientUpdate.join()
             p_election.join()
             p_chat.join()
-            p_heart_s.join()
+
 
 
 
