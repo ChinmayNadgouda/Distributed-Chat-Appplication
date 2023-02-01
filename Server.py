@@ -474,8 +474,7 @@ class Server():
                 # do some other stuff in the main process
 
                 listen_heartbeat = async_result.get()
-
-
+                print("readdd",listen_heartbeat)
                 if listen_heartbeat:
                     if listen_heartbeat[1] == b'heartbeat_recvd':
                         print("Server {} is alive:".format(server_ip))
@@ -483,7 +482,7 @@ class Server():
                 else:
                     if self.server_heatbeat_list[server_ip] > 1:   #later make this ip and change to 3 tries i.e 2
                         print("Server {} {} is dead:".format(server_ip,server_id))
-                        print("Update Group view and Replicate its clients to new server, choose a new server all this at next heartbeat")
+                        #print("Update Group view and Replicate its clients to new server, choose a new server all this at next heartbeat")
                         self.server_heatbeat_list[server_ip] = 0   #later make this ip
                         #inform all other servers
                         new_group_view = []
@@ -507,7 +506,7 @@ class Server():
                             if clients_transfered == True:
                                 break
                             for chatrooms in servers['chatrooms_handled']:
-                                print(chatrooms)
+                                #print(chatrooms)
                                 if len(chatrooms['clients_handled']) == min_cli:
                                     servers['chatrooms_handled'].append(new_chatroom[0])  #later can be multiple chatrooms so just loop
                                     new_server_ip = servers['IP']
@@ -540,9 +539,11 @@ class Server():
                 is_leader = self.heart_beating()    #should this start new thread
             else:
                 is_leader = self.heart_beat_recving()
-                if is_leader:
-                    for server in self.group_view:
+                print("here...............",is_leader,self.group_view)
+                for server in self.group_view:
                         self.server_heatbeat_list[server['IP']] = 0
+                if is_leader:
+                    
                     return
 
         # get the messaged passed from clients ( have a message queue )
@@ -553,7 +554,7 @@ class Server():
                 if heartbeat_leader:
                     UDPServerSocket.settimeout(5)
                 if heatbeat_server:
-                    UDPServerSocket.settimeout(5)
+                    UDPServerSocket.settimeout(10)
                 if chatroom_timeout:
                     UDPServerSocket.settimeout(5)
                 UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -738,13 +739,29 @@ class Server():
 def heartbeats():
     while True:
         if s.is_leader == True:
-            p_heart = threading.Thread(target=s.heartbeat_mechanism, args=())
-            p_heart.start()
-            p_heart.join()
+            pool1 = ThreadPool(processes=1)
+
+            async_result = pool1.apply_async(s.heartbeat_mechanism, ())  # tuple of args for foo
+
+            # do some other stuff in the main process
+
+            listen_heartbeat = async_result.get()
+            # p_heart = threading.Thread(target=s.heartbeat_mechanism, args=())
+            # p_heart.start()
+            # p_heart.join()
         else:
-            p_heart_s = threading.Thread(target=s.heartbeat_mechanism, args=())
-            p_heart_s.start()
-            p_heart_s.join()
+            pool2 = ThreadPool(processes=1)
+
+            async_result = pool2.apply_async(s.heartbeat_mechanism, ())  # tuple of args for foo
+
+            # do some other stuff in the main process
+
+            listen_heartbeat = async_result.get()
+            if listen_heartbeat:
+                return
+            # p_heart_s = threading.Thread(target=s.heartbeat_mechanism, args=())
+            # p_heart_s.start()
+            # p_heart_s.join()
 
 if __name__ == "__main__":
     #create Server
@@ -766,7 +783,7 @@ if __name__ == "__main__":
             p_election.start()
             p_chat = threading.Thread(target=s.collect_chatrooms, args=())
             p_chat.start()
-            p_heart = threading.Thread(target=s.heartbeat_mechanism, args=())
+            p_heart = threading.Thread(target=heartbeats, args=())
             p_heart.start()
             p_heart.join()
 
@@ -786,7 +803,7 @@ if __name__ == "__main__":
 
             p_chat = threading.Thread(target=s.collect_chatrooms, args=())
             p_chat.start()
-            p_heart = threading.Thread(target=s.heartbeat_mechanism, args=())
+            p_heart = threading.Thread(target= heartbeats, args=())
             p_heart.start()
             p_heart.join()
             
