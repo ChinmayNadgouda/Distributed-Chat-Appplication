@@ -69,7 +69,7 @@ class Server():
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
-    ip_address = "192.168.129.9"
+    ip_address = "192.168.43.236"
     #server id
     server_id = "12012023_1919"
     #Unique Identifier
@@ -271,9 +271,11 @@ class Server():
         for clients in chatroom['clients_handled']:
             cur_client = json.loads(clients)
             client_ip = cur_client['IP']
-            client_port = 10002 #fixed port for always listen
+            client_out_port = 10002 #fixed port for always listen
+            client_in_port = 10003
             UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-            UDPServerSocket.sendto(new_server_ip.encode(), (client_ip, client_port))
+            UDPServerSocket.sendto(new_server_ip.encode(), (client_ip, client_in_port))
+            UDPServerSocket.sendto(new_server_ip.encode(), (client_ip, client_out_port))
             UDPServerSocket.close()
 
 

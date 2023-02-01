@@ -30,6 +30,8 @@ class Client():
         pass
     def chatroom_input(self):
         while(True):
+            p_leader_listen = threading.Thread(target=client.keep_listening_to_leader,args=(False,))
+            p_leader_listen.start()
             message_to_send = input("Give your input:")
             if message_to_send == "!exit":
                 # send_message() extting
@@ -50,6 +52,8 @@ class Client():
     def chatroom_output(self):
         #send_message(self.server_ip, inport,"client_id"+",join,"+str(inport)+","+"join")
         while True:
+            p_leader_listen = threading.Thread(target=client.keep_listening_to_leader,args=(True,))
+            p_leader_listen.start()
             data = self.recieve_message(client_outport)
             print('Listening to server',self.server_ip)
             if data:
@@ -115,16 +119,27 @@ class Client():
         else:
             broadcast_socket.sendto(broadcast_message, (ip, port))
     #     #broadcast_socket.close()
-    def keep_listening_to_leader(self):
-        client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        client_socket.bind((MY_IP, 10002))       #willl need another socket and port
-        print('always Waiting for response...')
-        data, server = client_socket.recvfrom(bufferSize)
-        #got new server
-        client_socket.close()
-        print(data)
-        self.server_ip = data.decode()
+    def keep_listening_to_leader(self,output_input):
+        if output_input:
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            client_socket.bind((MY_IP, 10002))       #willl need another socket and port
+            print('always Waiting for response...')
+            data, server = client_socket.recvfrom(bufferSize)
+            #got new server
+            client_socket.close()
+            print(data)
+            self.server_ip = data.decode()
+        else:
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            client_socket.bind((MY_IP, 10003))       #willl need another socket and port
+            print('always Waiting for response...')
+            data, server = client_socket.recvfrom(bufferSize)
+            #got new server
+            client_socket.close()
+            print(data)
+            self.server_ip = data.decode()
 
         #get the server ip, in port and out port and update current values
     def login(self,userName):
@@ -189,12 +204,11 @@ if __name__ == '__main__':
     userName = input('Enter UserName ')
     client.server_ip,client.server_inport,client.server_outport = client.login(userName)
     while True:
-        p_leader_listen = threading.Thread(target=client.keep_listening_to_leader,args=())
-        p_leader_listen.start()
+       
 
         p_chat = threading.Thread(target=client.after_login, args=())
         p_chat.start()
 
-        p_leader_listen.join()
+        
         p_chat.join()
     #receive IP of Server where Chatroom runs, opens connection to it
