@@ -14,7 +14,7 @@ server_port = 10001
 bufferSize  = 1024
 #get own IP
 MY_HOST = socket.gethostname()
-MY_IP = "192.168.129.9" #socket.gethostbyname(MY_HOST)
+MY_IP = "192.168.129.226" #socket.gethostbyname(MY_HOST)
 local_ip = MY_IP
 client_inport = 5566
 client_outport = 5565

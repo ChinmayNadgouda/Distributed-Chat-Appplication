@@ -15,7 +15,7 @@ import threading
 
 import uuid
 
-localIP     = "192.168.129.9"
+localIP     = "192.168.129.226"
 
 BROADCAST_IP = "192.168.129.255" #needs to be reconfigured depending on network
 
@@ -31,7 +31,7 @@ import multiprocessing
 from multiprocessing.pool import ThreadPool
 import threading
 
-leader_ip = "192.168.129.9"
+leader_ip = "192.168.129.226"
 localPort_in   = 5002     #chat inroom
 localPort_out = 5003      #chat outroom
 local_server_port = 4443   #heartbeat
@@ -68,7 +68,7 @@ class Server():
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
-    ip_address = "192.168.129.9"
+    ip_address = "192.168.129.226"
     #server id
     server_id = "12012023_1919"
     #Unique Identifier
@@ -469,7 +469,7 @@ class Server():
                         print("Server {} is alive:".format(server_ip))
                         self.server_heatbeat_list[server_id] = 0      #later make this ip
                 else:
-                    if self.server_heatbeat_list[server_id] > 3:   #later make this ip and change to 3 tries i.e 2
+                    if self.server_heatbeat_list[server_id] > 1:   #later make this ip and change to 3 tries i.e 2
                         print("Server {} {} is dead:".format(server_ip,server_id))
                         print("Update Group view and Replicate its clients to new server, choose a new server all this at next heartbeat")
                         self.server_heatbeat_list[server_id] = 0   #later make this ip
@@ -486,11 +486,11 @@ class Server():
 
                         self.group_view = new_group_view
                         min_cli = 10000
-
+                        clients_transfered = False
                         for servers in self.group_view:
                             if clients_transfered == True:
                                 break
-                            if servers['IP'] == self.leader:
+                            if servers['serverID'] == 0:
                                 continue
                             for chatrooms in servers['chatrooms_handled']:
                                 print(chatrooms)
