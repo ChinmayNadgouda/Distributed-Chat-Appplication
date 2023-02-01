@@ -9,12 +9,12 @@ import os
 #client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  #changed_remove
 import threading
 
-BROADCAST_IP = "192.168.188.255" #needs to be reconfigured depending on network
+BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
 server_port = 10001
 bufferSize  = 1024
 #get own IP
 MY_HOST = socket.gethostname()
-MY_IP = "192.168.188.22" #socket.gethostbyname(MY_HOST)
+MY_IP = "192.168.43.236" #socket.gethostbyname(MY_HOST)
 local_ip = MY_IP
 client_inport = 5566
 client_outport = 5565
@@ -69,7 +69,8 @@ def recieve_message(port=5565):
     try:
         # Receive response and set timeout for every 5 sec
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        #client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         client_socket.settimeout(5)
         client_socket.bind((local_ip,port))
         #print('Waiting for response...')
@@ -108,6 +109,7 @@ def broadcast(ip, port, broadcast_message,broadcast_socket):
 #     #broadcast_socket.close()
 def keep_listening_to_leader():
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     client_socket.bind((MY_IP, 10002))       #willl need another socket and port
     print('always Waiting for response...')
     data, server = client_socket.recvfrom(bufferSize)

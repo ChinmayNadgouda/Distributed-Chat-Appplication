@@ -15,9 +15,9 @@ import threading
 
 import uuid
 
-localIP     = "192.168.43.85"
+localIP     = "192.168.43.236"
 
-BROADCAST_IP = "192.168.188.255" #needs to be reconfigured depending on network
+BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
 
 localPort   = 10001      #broadcast servers
 
@@ -31,7 +31,7 @@ import multiprocessing
 from multiprocessing.pool import ThreadPool
 import threading
 
-leader_ip = "192.168.43.85"
+leader_ip = "192.168.43.236"
 localPort_in   = 5002     #chat inroom
 localPort_out = 5003      #chat outroom
 local_server_port = 4443   #heartbeat
@@ -56,7 +56,7 @@ class CustomThread(Thread):
         # sleep(1)
         # store data in an instance variable
         serve2 = Server()
-        self.value = serve2.read_client(self.localPort_out, True, False)
+        self.value = serve2.read_client(self.localPort_out,False, True, False)
 
 
 
@@ -68,7 +68,7 @@ class Server():
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
-    ip_address = "192.168.43.85"
+    ip_address = "192.168.43.236"
     #server id
     server_id = "12012023_1919"
     #Unique Identifier
@@ -129,7 +129,7 @@ class Server():
                     return
                 UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
                 #UDPServerSocket.bind((localIP, localPort))
-                UDPServerSocket.bind(("0.0.0.0", localPort)) #changed_remove
+                UDPServerSocket.bind((localIP, localPort)) #changed_remove
                 UDPServerSocket.settimeout(10)
                 print("Listening to client messages")
                 data = self.broadcastlistener(UDPServerSocket,'client')
@@ -148,7 +148,7 @@ class Server():
                 ##client selection reply
                 UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
                 # UDPServerSocket.bind((localIP, localPort))
-                UDPServerSocket.bind(("0.0.0.0", localPort))  # changed_remove
+                UDPServerSocket.bind((localIP, localPort))  # changed_remove
                 #UDPServerSocket.settimeout(10)
                 print("Listening to client messages response to join chatroom")
                 data = self.broadcastlistener(UDPServerSocket, 'client')
@@ -250,7 +250,7 @@ class Server():
             LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
             LeaderServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             #LeaderServerSocket.bind((localIP, 5043))
-            LeaderServerSocket.bind(("0.0.0.0", 5043)) #changed_remove
+            LeaderServerSocket.bind((localIP, 5043)) #changed_remove
             print('Listening to Server mesages')
             newServerIP = self.broadcastlistener(LeaderServerSocket,'server')
             LeaderServerSocket.close()
@@ -326,7 +326,7 @@ class Server():
 
         ringSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         ringSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  #changed_remove
-        ringSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)  #changed_remove
+        #ringSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)  #changed_remove
         #ringSocket.bind((self.ip_address, 5892))
         message = pickle.dumps({"mid": self.my_uid, "isLeader": False, "IP": self.ip_address})
         ringSocket.sendto(message,(neighbour,5892))
@@ -337,7 +337,7 @@ class Server():
             participant = False
             ringSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             ringSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) #changed_remove
-            ringSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1) #changed_remove
+            #ringSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1) #changed_remove
             ringSocket.bind((self.ip_address, 5892))
             self.update_serverlist(server)
             ring = self.form_ring(self.server_list)
@@ -420,7 +420,7 @@ class Server():
             return None
     def heart_beat_recving(self):
 
-        leader_heartbeat = self.read_client(4444,heartbeat_leader=False,heatbeat_server=True)    #fix this port to own heartbeat port
+        leader_heartbeat = self.read_client(4444,False,heartbeat_leader=False,heatbeat_server=True)    #fix this port to own heartbeat port
         print(leader_heartbeat)
         if leader_heartbeat:
             if leader_heartbeat[1] == b'heartbeat':
@@ -456,7 +456,7 @@ class Server():
 
                 pool = ThreadPool(processes=1)
 
-                async_result = pool.apply_async(self.read_client, (local_server_port,True,False))  # tuple of args for foo
+                async_result = pool.apply_async(self.read_client, (local_server_port,False,True,False))  # tuple of args for foo
 
                 # do some other stuff in the main process
 
@@ -468,7 +468,7 @@ class Server():
                         print("Server {} is alive:".format(server_ip))
                         self.server_heatbeat_list[server_id] = 0      #later make this ip
                 else:
-                    if self.server_heatbeat_list[server_id] > 1:   #later make this ip and change to 3 tries i.e 2
+                    if self.server_heatbeat_list[server_id] > 3:   #later make this ip and change to 3 tries i.e 2
                         print("Server {} {} is dead:".format(server_ip,server_id))
                         print("Update Group view and Replicate its clients to new server, choose a new server all this at next heartbeat")
                         self.server_heatbeat_list[server_id] = 0   #later make this ip
@@ -523,7 +523,7 @@ class Server():
                     return
 
         # get the messaged passed from clients ( have a message queue )
-    def read_client(self, port, heartbeat_leader=False, heatbeat_server=False):
+    def read_client(self, port, chatroom_timeout =False,heartbeat_leader=False, heatbeat_server=False):
             try:
                 UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
                 # UDPServerSocket.setblocking(0)
@@ -531,9 +531,11 @@ class Server():
                     UDPServerSocket.settimeout(5)
                 if heatbeat_server:
                     UDPServerSocket.settimeout(35)
+                if chatroom_timeout:
+                    UDPServerSocket.settimeout(5)
                 UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-                print("heree {}".format(port))
+                #UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+                #print("heree {}".format(port))
                 UDPServerSocket.bind((localIP, port))
                 # keep listening and get the message from clinet
                 bytesAddressPair = UDPServerSocket.recvfrom(bufferSize)
@@ -634,10 +636,10 @@ class Server():
                                 break
                             current_chatroom = chatrooms
 
-                            clients_for_this_room = current_chatroom['clients_handled']
+                            clients_for_this_room = chatrooms['clients_handled']
                             chatroom_inport = current_chatroom['inPorts'][0]
                             chatroom_outport = current_chatroom['outPorts'][0]
-                            p_room = multiprocessing.Process(target=self.collect_clients,args=(clients_for_this_room,chatroom_inport,chatroom_outport))
+                            p_room = threading.Thread(target=self.collect_clients,args=(chatrooms,chatroom_inport,chatroom_outport))
                             p_room.start()
 
                         for chatrooms in self.chatrooms_handled:
@@ -648,18 +650,26 @@ class Server():
                 print("heer")
 
 
-    def collect_clients(self,clients_handled,chatroom_inport,chatroom_outport):
-        print('starting chatroom for : ', clients_handled)
-        for client in clients_handled:
-            p_chat = multiprocessing.Process(target=self.write_to_chatroom, args=(clients_handled,chatroom_inport,chatroom_outport,))
-            p_chat.start()
+    def collect_clients(self,chatrooms,chatroom_inport,chatroom_outport):
+        #print('starting chatroom for : ', clients_handled)
+        for chatroom in self.chatrooms_handled:
+            if len(chatroom['clients_handled']) == 0:
+                                break
+            for client in chatroom['clients_handled']:
+                p_chat = threading.Thread(target=self.write_to_chatroom, args=(chatrooms,chatroom_inport,chatroom_outport,))
+                p_chat.start()
 
-        for client in self.clients_handled:
-            p_chat.join()
-    def write_to_chatroom(self,clients_handled,chatroom_inport,chatroom_outport):
+        for chatroom in self.chatrooms_handled:
+            if len(chatroom['clients_handled']) == 0:
+                                break
+            for client in chatroom['clients_handled']:
+                p_chat.join()
+    def write_to_chatroom(self,chatrooms,chatroom_inport,chatroom_outport):
         while True:
-            print("Now sdfsdf    here",chatroom_inport)
-            bytesAddressPair = self.read_client(chatroom_inport)  # localPort_in for each chatroom
+            #print("Now sdfsdf    here",chatroom_inport)
+            bytesAddressPair = self.read_client(chatroom_inport,True)  # localPort_in for each chatroom
+            if bytesAddressPair == False:
+                return
             print("Message in chatroom {} from {}".format(chatroom_inport,bytesAddressPair))
             message_from_client = bytesAddressPair[1].decode('utf-8')
 
@@ -674,17 +684,20 @@ class Server():
             self.ack_counter[from_client_ip] = {}
             self.ack_counter[from_client_ip][chatroom_inport] = 0
             print("ACKcount_b2", self.ack_counter[from_client_ip][chatroom_inport])
-            for client in clients_handled:
-                actual_client = json.loads(client)
-                to_client_ip = actual_client['IP']
-                to_client_port = actual_client['outPorts']
-                to_client_port_ack = actual_client['inPorts']  # same as from_inport
-                # if to_client_ip == from_client_ip and to_client_port_ack == from_inport:   #notneeded
-                #     sender_inport = to_client_port_ack
-                thread = threading.Thread(target=self.write_to_client_with_ack,
-                                          args=(message, to_client_ip, to_client_port, from_client_ip,chatroom_inport,chatroom_outport,))
-                thread.start()
-                thread.join()
+            print('TEST, ',self.chatrooms_handled)
+            for chatroom in self.chatrooms_handled:
+                if int(chatroom['inPorts'][0]) == int(chatroom_inport):
+                    for clients in chatroom['clients_handled']:
+                        actual_client = json.loads(clients)
+                        to_client_ip = actual_client['IP']
+                        to_client_port = actual_client['outPorts']
+                        to_client_port_ack = actual_client['inPorts']  # same as from_inport
+                        # if to_client_ip == from_client_ip and to_client_port_ack == from_inport:   #notneeded
+                        #     sender_inport = to_client_port_ack
+                        thread = threading.Thread(target=self.write_to_client_with_ack,
+                                                args=(message, to_client_ip, to_client_port, from_client_ip,chatroom_inport,chatroom_outport,))
+                        thread.start()
+                        thread.join()
             print("ACKcount_a", self.ack_counter[from_client_ip][chatroom_inport])
             if self.ack_counter[from_client_ip][chatroom_inport] == len(self.clients_handled):
                 # for all clinets send sent!
