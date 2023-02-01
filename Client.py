@@ -9,12 +9,12 @@ import os
 #client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  #changed_remove
 import threading
 
-BROADCAST_IP = "192.168.129.255" #needs to be reconfigured depending on network
+BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
 
 bufferSize  = 1024
 #get own IP
 MY_HOST = socket.gethostname()
-MY_IP = "192.168.129.9" #socket.gethostbyname(MY_HOST)
+MY_IP = "192.168.43.236" #socket.gethostbyname(MY_HOST)
 local_ip = MY_IP
 client_inport = 5566
 client_outport = 5565
@@ -68,7 +68,7 @@ class Client():
 
             # Send data
             client_socket.sendto(str.encode(message_to_b_sent+","+str(client_outport)+","+str(client_inport)), (s_address, s_port))  #not needed
-            print('Sent to server: ', message_to_b_sent,s_port)
+            print('Sent to server {}:{}:  {}'.format( s_address,s_port,message_to_b_sent))
         finally:
             client_socket.close()
             #print('Socket closed')
