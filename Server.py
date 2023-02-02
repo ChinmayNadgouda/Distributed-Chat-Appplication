@@ -345,9 +345,14 @@ class Server():
             #ringSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1) #changed_remove
             ringSocket.bind((self.ip_address, 5892))
             self.update_serverlist(server)
+            if len(self.server_list) == 1:
+                self.leader = self.ip_address
+                self.is_leader = True
+                print("I AM LEADER!")
+                continue
             ring = self.form_ring(self.server_list)
             neighbour = self.get_neighbour(ring, self.ip_address,'left')
-
+            
             print("Waiting for Election Messages")
             ringSocket.settimeout(3)
             try:
@@ -397,7 +402,7 @@ class Server():
                 
                 print("eof Leader is " + self.leader)
             except socket.timeout:
-                self.election()
+                self.election(server)
 
 
     def update_serverlist(self, server):
