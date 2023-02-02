@@ -40,13 +40,13 @@ class Client():
                 self.send_message(self.server_ip, self.server_inport, "client_id"+",send_msg,"+"chatroom_id"+","+message_to_send)
                 data = self.recieve_message(client_inport)
                 if data == b'sent':
-                    print(data)
+                    print("[IN]",data)
                 elif data == False:
                     continue
                 else:
                     self.send_message(self.server_ip, self.server_inport, "client_id" + ",send_msg," + "chatroom_id" + "," + message_to_send)
                     data = self.recieve_message(client_outport)
-                    print(data)
+                    print("[IN]",ata)
 
 
     def chatroom_output(self):
@@ -61,7 +61,7 @@ class Client():
                 #data_ack2 = recieve_message()
                 #if data_ack2 == b'sent':
                 #print(data)
-                print(data)
+                print("[OUT]",data)
 
     def send_message(self,s_address, s_port, message_to_b_sent):
         try:
@@ -128,7 +128,7 @@ class Client():
             data, server = client_socket.recvfrom(bufferSize)
             #got new server
             client_socket.close()
-            print(data)
+            print("NEW SERVER IP FOR CHATROOM",data.decode())
             self.server_ip = data.decode()
         else:
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -138,7 +138,7 @@ class Client():
             data, server = client_socket.recvfrom(bufferSize)
             #got new server
             client_socket.close()
-            print(data)
+            print("NEW SERVER IP FOR CHATROOM", data.decode())
             self.server_ip = data.decode()
 
         #get the server ip, in port and out port and update current values
@@ -160,7 +160,7 @@ class Client():
         selected_chatroom = input("Give the chatroom id (inport):  ")
         for chatrooms in server_list[int(selected_server)]['chatrooms_handled']:
             if chatrooms['inPorts'][0] == int(selected_chatroom):
-                print("here.///////////////")
+                print("Configuring the chatroom")
                 inport = chatrooms['inPorts']
                 outport = chatrooms['outPorts']
                 self.server_ip = server_list[int(selected_server)]['IP']
@@ -168,7 +168,7 @@ class Client():
         # server_ip = data.decode()
         # print("Communicate with server: " + server_ip)
         #later loop inports and outpots to select which chatroom
-        print(inport[0],outport[0])
+        print("Chatroom available on ports  [IN]:[OUT] - ",inport[0],outport[0])
         self.server_inport = inport[0]
         self.server_outport = outport[0]
         client = {'IP': MY_IP, "inPorts": client_inport , "outPorts": client_outport, "selected_server":selected_server, "selected_chatroom": inport[0]}
