@@ -17,7 +17,7 @@ import threading
 import uuid
 
 MY_HOST = socket.gethostname()
-localIP     = "192.168.43.236" #socket.gethostbyname(MY_HOST) 
+localIP     = "192.168.43.235" #socket.gethostbyname(MY_HOST) 
 
 BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
 
@@ -72,7 +72,8 @@ class Server():
     #ip of the server itself
     ip_address = localIP
     #server id
-    server_id = "12012023_1919"
+    server_id = ""
+    leader_id = ""
     #Unique Identifier
     my_uid = str(uuid.uuid1())
     #ip and id of each server in the group
@@ -217,6 +218,11 @@ class Server():
             print("I got data: " + str(self.group_view))
             self.leader = server[0]
             print("Leader: " + self.leader + "GroupView: " + str(self.group_view))
+            for server in self.group_view:
+                if server['IP'] == self.ip_address:
+                    self.server_id = server['ID']
+                if server['IP'] == self.leader:
+                    self.leader_id = server['ID']
             self.start_election(server)
 
 
@@ -226,6 +232,8 @@ class Server():
             self.leader = self.ip_address
             self.is_leader = True
             self.group_view.append({"serverID": 0, "IP" : self.ip_address, "chatrooms_handled" : [{"inPorts": [5000], "outPorts": [5001], 'clients_handled':[]}],'heartbeat_port':4443})
+            self.server_id = 0
+            self.leader_id = 0
             print(self.group_view)
         LeaderServerSocket.close()
     def ports_calc(self):
@@ -450,17 +458,19 @@ class Server():
         else:
             print('Leader is dead,start election')
             print('Update groupview and election start')
-            new_group_view = []
-            dummy_server = None
-            for server in self.group_view:
-                if server['IP'] == self.leader:
-                    pass
-                else:
-                    new_group_view.append(server)
-            self.group_view = new_group_view
-            new_group_view = pickle.dumps(new_group_view)
-            self.sendto_allServers(dummy_server,new_group_view,5044)
-            self.start_election(dummy_server)
+            if (self.leader_id + 1)%len(self.group_view) == self.server_id: 
+                new_group_view = []
+                dummy_server = None
+                for server in self.group_view:
+                    if server['IP'] == self.leader:
+                        pass
+                    else:
+                        new_group_view.append(server)
+                self.group_view = new_group_view
+                new_group_view = pickle.dumps(new_group_view)
+                self.sendto_allServers(dummy_server,new_group_view,5044)
+                self.start_election(dummy_server)
+            
             if self.is_leader:
                 return True
             else:
