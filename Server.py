@@ -17,7 +17,7 @@ import threading
 import uuid
 
 MY_HOST = socket.gethostname()
-localIP     = "192.168.0.206"#socket.gethostbyname(MY_HOST) 
+localIP     = socket.gethostbyname(MY_HOST) 
 
 BROADCAST_IP = "192.168.0.255" #needs to be reconfigured depending on network
 
@@ -258,25 +258,32 @@ class Server():
         while True:
             if self.is_leader == False:
                     return
-            LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-            LeaderServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            LeaderServerSocket.bind((localIP, 5043))
-            #LeaderServerSocket.bind(("0.0.0.0", 5043)) #changed_remove
-            print('Listening to Server mesages')
-            newServerIP = self.broadcastlistener(LeaderServerSocket,'server')
-            LeaderServerSocket.close()
-            print(self.group_view)
-            newServerID = max(self.group_view, key = lambda x:x['serverID'])['serverID'] + 1
-            inports,outports = self.ports_calc()
-            newServer = {"serverID": newServerID, "IP" : newServerIP.decode(),"chatrooms_handled" : [{"inPorts": inports, "outPorts": outports, 'clients_handled':[]}],'heartbeat_port':4444}
-            self.group_view.append(newServer)
-            self.server_heatbeat_list[newServerIP.decode()] = 0     ##made this change
-            message = pickle.dumps(self.group_view)
-            print(message)
-            self.sendto_allServers(server, message, 5044)
-            LeaderServerSocket.close()
-            if self.is_leader == False:
-                return
+            try:
+                LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+                LeaderServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                LeaderServerSocket.settimeout(4)
+                LeaderServerSocket.bind((localIP, 5043))
+
+                #LeaderServerSocket.bind(("0.0.0.0", 5043)) #changed_remove
+                print('Listening to Server mesages')
+                newServerIP = self.broadcastlistener(LeaderServerSocket,'server')
+                LeaderServerSocket.close()
+                print(self.group_view)
+                newServerID = max(self.group_view, key = lambda x:x['serverID'])['serverID'] + 1
+                inports,outports = self.ports_calc()
+                newServer = {"serverID": newServerID, "IP" : newServerIP.decode(),"chatrooms_handled" : [{"inPorts": inports, "outPorts": outports, 'clients_handled':[]}],'heartbeat_port':4444}
+                self.group_view.append(newServer)
+                self.server_heatbeat_list[newServerIP.decode()] = 0     ##made this change
+                message = pickle.dumps(self.group_view)
+                print(message)
+                self.sendto_allServers(server, message, 5044)
+                LeaderServerSocket.close()
+            except socket.timeout:
+                LeaderServerSocket.close()
+                if self.is_leader:
+                    self.accept_Join(server)
+
+
     def send_to_clients_new_server(self,chatroom,new_server_ip):
         for clients in chatroom['clients_handled']:
             cur_client = json.loads(clients)
@@ -369,7 +376,7 @@ class Server():
             data, adress = ringSocket.recvfrom(bufferSize)
             #print (pickle.loads(data))
             self.update_serverlist(server)
-            #time.sleep(1)
+            time.sleep(1)
             ring = self.form_ring(self.server_list)
             neighbour = self.get_neighbour(ring, self.ip_address,'left')
             election_message = pickle.loads(data)
