@@ -17,7 +17,7 @@ import threading
 import uuid
 
 MY_HOST = socket.gethostname()
-localIP     = "192.168.43.235" #socket.gethostbyname(MY_HOST) 
+localIP     = "192.168.43.236" #socket.gethostbyname(MY_HOST) 
 
 BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
 
@@ -130,8 +130,8 @@ class Server():
                 if self.is_leader == False:
                     return
                 UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-                #UDPServerSocket.bind((localIP, localPort))
-                UDPServerSocket.bind(("0.0.0.0", localPort)) #changed_remove
+                UDPServerSocket.bind((localIP, localPort))
+                #UDPServerSocket.bind(("0.0.0.0", localPort)) #changed_remove
                 UDPServerSocket.settimeout(10)
                 print("Listening to client messages")
                 data = self.broadcastlistener(UDPServerSocket,'client')
@@ -252,8 +252,8 @@ class Server():
                     return
             LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
             LeaderServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            #LeaderServerSocket.bind((localIP, 5043))
-            LeaderServerSocket.bind(("0.0.0.0", 5043)) #changed_remove
+            LeaderServerSocket.bind((localIP, 5043))
+            #LeaderServerSocket.bind(("0.0.0.0", 5043)) #changed_remove
             print('Listening to Server mesages')
             newServerIP = self.broadcastlistener(LeaderServerSocket,'server')
             LeaderServerSocket.close()
@@ -326,6 +326,11 @@ class Server():
         #TODO implement leader Election
         print("My UID: " + self.my_uid)
         self.update_serverlist(server)
+        if len(self.server_list) == 1:
+                self.leader = self.ip_address
+                self.is_leader = True
+                print("I AM LEADER!")
+                return
         ring = self.form_ring(self.server_list)
         neighbour = self.get_neighbour(ring, self.ip_address,'left')
 
@@ -334,6 +339,8 @@ class Server():
         #ringSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)  #changed_remove
         #ringSocket.bind((self.ip_address, 5892))
         message = pickle.dumps({"mid": self.my_uid, "isLeader": False, "IP": self.ip_address})
+        print("Send message ", message, "to ", neighbour)
+        ringSocket.sendto(message,(neighbour,5892))
         ringSocket.sendto(message,(neighbour,5892))
         ringSocket.close()
 
@@ -345,18 +352,15 @@ class Server():
             #ringSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1) #changed_remove
             ringSocket.bind((self.ip_address, 5892))
             self.update_serverlist(server)
-            if len(self.server_list) == 1:
-                self.leader = self.ip_address
-                self.is_leader = True
-                print("I AM LEADER!")
-                continue
+            
             ring = self.form_ring(self.server_list)
             neighbour = self.get_neighbour(ring, self.ip_address,'left')
             
             print("Waiting for Election Messages")
-            ringSocket.settimeout(3)
+            ringSocket.settimeout(15)
             try:
                 data, adress = ringSocket.recvfrom(bufferSize)
+                print (pickle.loads(data))
                 election_message = pickle.loads(data)
                 print("EM L354: ",election_message)
 
@@ -460,14 +464,14 @@ class Server():
             if self.is_leader:
                 return True
             else:
-                time.sleep(10)
+                #time.sleep(10)
                 return False
 
     def heart_beating(self):
         for server in self.group_view:
             #time.sleep(10) #heartbeats after 60 seconds
             if self.is_leader == False:
-                return
+                return True
 
             server_id = server['serverID']
             server_ip = server['IP']
@@ -546,6 +550,8 @@ class Server():
             
             if self.is_leader:
                 is_leader = self.heart_beating()    #should this start new thread
+                if is_leader:
+                    return True
             else:
                 is_leader = self.heart_beat_recving()
                 print("HB MECHA:",is_leader,self.group_view)
@@ -563,7 +569,7 @@ class Server():
                 if heartbeat_leader:
                     UDPServerSocket.settimeout(5)
                 if heatbeat_server:
-                    UDPServerSocket.settimeout(10)
+                    UDPServerSocket.settimeout(15)
                 if chatroom_timeout:
                     UDPServerSocket.settimeout(5)
                 UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -744,6 +750,9 @@ def heartbeats():
             # do some other stuff in the main process
 
             listen_heartbeat = async_result.get()
+            if listen_heartbeat:
+                print('here af')
+                return
             # p_heart = threading.Thread(target=s.heartbeat_mechanism, args=())
             # p_heart.start()
             # p_heart.join()
@@ -756,6 +765,7 @@ def heartbeats():
 
             listen_heartbeat = async_result.get()
             if listen_heartbeat:
+                print('here')
                 return
             # p_heart_s = threading.Thread(target=s.heartbeat_mechanism, args=())
             # p_heart_s.start()
@@ -770,7 +780,8 @@ if __name__ == "__main__":
 
     # p_H = threading.Thread(target=heartbeats, args=())
     # p_H.start()
-
+    p_chat = threading.Thread(target=s.collect_chatrooms, args=())
+    p_chat.start()
     while True:
         if s.is_leader == True:
             p_join = threading.Thread(target = s.accept_Join, args = (s,))
@@ -779,16 +790,15 @@ if __name__ == "__main__":
             p_login.start()
             p_election = threading.Thread(target = s.election, args = (s,))
             p_election.start()
-            p_chat = threading.Thread(target=s.collect_chatrooms, args=())
-            p_chat.start()
+            
             p_heart = threading.Thread(target=heartbeats, args=())
             p_heart.start()
-            p_heart.join()
-
+            
             p_login.join()
             p_join.join()
             p_election.join()
-            p_chat.join()
+            
+            p_heart.join()
 
         else:
             p_groupviewUpdate = threading.Thread(target = s.update_groupview, args = (s,))
@@ -799,16 +809,16 @@ if __name__ == "__main__":
             p_election = threading.Thread(target = s.election, args = (s,))
             p_election.start()
 
-            p_chat = threading.Thread(target=s.collect_chatrooms, args=())
-            p_chat.start()
+            
             p_heart = threading.Thread(target= heartbeats, args=())
             p_heart.start()
-            p_heart.join()
+            
             
             p_groupviewUpdate.join()
             p_clientUpdate.join()
             p_election.join()
-            p_chat.join()
+            
+            p_heart.join()
 
 
 
