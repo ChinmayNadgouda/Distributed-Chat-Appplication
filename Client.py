@@ -14,7 +14,7 @@ BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
 bufferSize  = 1024
 #get own IP
 MY_HOST = socket.gethostname()
-MY_IP = "192.168.43.235" #socket.gethostbyname(MY_HOST)
+MY_IP = socket.gethostbyname(MY_HOST)
 local_ip = MY_IP
 client_inport = 5566
 client_outport = 5565

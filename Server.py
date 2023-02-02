@@ -16,9 +16,10 @@ import threading
 
 import uuid
 
-localIP     = "192.168.188.22"
+MY_HOST = socket.gethostname()
+localIP     = "192.168.43.235" #socket.gethostbyname(MY_HOST) 
 
-BROADCAST_IP = "192.168.188.255" #needs to be reconfigured depending on network
+BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
 
 localPort   = 10001      #broadcast servers
 
@@ -32,7 +33,7 @@ import multiprocessing
 from multiprocessing.pool import ThreadPool
 import threading
 
-leader_ip = "192.168.188.22"
+leader_ip = localIP
 localPort_in   = 5002     #chat inroom
 localPort_out = 5003      #chat outroom
 local_server_port = 4443   #heartbeat
@@ -69,7 +70,7 @@ class Server():
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
-    ip_address = "192.168.188.22"
+    ip_address = localIP
     #server id
     server_id = "12012023_1919"
     #Unique Identifier
@@ -348,52 +349,55 @@ class Server():
             neighbour = self.get_neighbour(ring, self.ip_address,'left')
 
             print("Waiting for Election Messages")
+            ringSocket.settimeout(3)
+            try:
+                data, adress = ringSocket.recvfrom(bufferSize)
+                election_message = pickle.loads(data)
+                print("EM L354: ",election_message)
 
-            data, adress = ringSocket.recvfrom(bufferSize)
-            election_message = pickle.loads(data)
-            print("EM L354: ",election_message)
+                if election_message['isLeader']:
+                    self.leader = election_message['IP']
+                    print("Leader is: " + self.leader)
+                    participant = False
+                    ringSocket.sendto(data,(neighbour,5892))
+                    self.is_leader = False
+                    ringSocket.close()
+                    return
+                    
 
-            if election_message['isLeader']:
-                self.leader = election_message['IP']
-                print("Leader is: " + self.leader)
-                participant = False
-                ringSocket.sendto(data,(neighbour,5892))
-                self.is_leader = False
-                ringSocket.close()
-                return
+                if election_message['mid'] < self.my_uid and not participant:
+                    new_election_message = {
+                        "mid": self.my_uid, 
+                        "isLeader": False,
+                        "IP": self.ip_address
+                    }
+                    participant = True
+                    ringSocket.sendto(pickle.dumps(new_election_message),(neighbour,5892))
+                    ringSocket.close()
+
+                elif election_message['mid'] > self.my_uid:
+                    participant = True
+                    ringSocket.sendto(data,(neighbour,5892))
+                    ringSocket.close()
+
+                elif election_message['mid'] == self.my_uid:
+                    self.leader = self.ip_address
+                    self.is_leader = True
+                    new_election_message = {
+                        "mid": self.my_uid,
+                        "isLeader": True,
+                        "IP": self.ip_address
+                    }
+                    ringSocket.sendto(pickle.dumps(new_election_message),(neighbour,5892))
+                    print("I AM LEADER")
+                    ringSocket.close()
+                    return
+                    
                 
-
-            if election_message['mid'] < self.my_uid and not participant:
-                new_election_message = {
-                    "mid": self.my_uid, 
-                    "isLeader": False,
-                    "IP": self.ip_address
-                }
-                participant = True
-                ringSocket.sendto(pickle.dumps(new_election_message),(neighbour,5892))
-                ringSocket.close()
-
-            elif election_message['mid'] > self.my_uid:
-                participant = True
-                ringSocket.sendto(data,(neighbour,5892))
-                ringSocket.close()
-
-            elif election_message['mid'] == self.my_uid:
-                self.leader = self.ip_address
-                self.is_leader = True
-                new_election_message = {
-                    "mid": self.my_uid,
-                    "isLeader": True,
-                    "IP": self.ip_address
-                }
-                ringSocket.sendto(pickle.dumps(new_election_message),(neighbour,5892))
-                print("I AM LEADER")
-                ringSocket.close()
-                return
                 
-            
-            
-            print("eof Leader is " + self.leader)
+                print("eof Leader is " + self.leader)
+            except socket.timeout:
+                self.election()
 
 
     def update_serverlist(self, server):
@@ -568,7 +572,7 @@ class Server():
 
                 address = bytesAddressPair[1]
 
-                clientMsg = "Message from {} : {}".format(address)
+                clientMsg = "Message from {} : {}".format(address, port)
                 #clientIP = "Client IP Address:{}".format(address)
 
                 print(clientMsg)
