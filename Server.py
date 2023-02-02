@@ -17,9 +17,9 @@ import threading
 import uuid
 
 MY_HOST = socket.gethostname()
-localIP     = "192.168.43.235" #socket.gethostbyname(MY_HOST) 
+localIP     = socket.gethostbyname(MY_HOST) 
 
-BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
+BROADCAST_IP = "192.168.0.255" #needs to be reconfigured depending on network
 
 localPort   = 10001      #broadcast servers
 
