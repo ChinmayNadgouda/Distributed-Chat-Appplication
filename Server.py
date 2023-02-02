@@ -220,9 +220,9 @@ class Server():
             print("Leader: " + self.leader + "GroupView: " + str(self.group_view))
             for server in self.group_view:
                 if server['IP'] == self.ip_address:
-                    self.server_id = server['ID']
+                    self.server_id = server['serverID']
                 if server['IP'] == self.leader:
-                    self.leader_id = server['ID']
+                    self.leader_id = server['serverID']
             self.start_election(server)
 
 
@@ -347,7 +347,7 @@ class Server():
         #ringSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)  #changed_remove
         #ringSocket.bind((self.ip_address, 5892))
         message = pickle.dumps({"mid": self.my_uid, "isLeader": False, "IP": self.ip_address})
-        print("Send message ", message, "to ", neighbour)
+        print("Send message ", pickle.dumps(message), "to ", neighbour)
         ringSocket.sendto(message,(neighbour,5892))
         ringSocket.sendto(message,(neighbour,5892))
         ringSocket.close()
@@ -368,7 +368,7 @@ class Server():
             ringSocket.settimeout(15)
             try:
                 data, adress = ringSocket.recvfrom(bufferSize)
-                print (pickle.loads(data))
+                #print (pickle.loads(data))
                 election_message = pickle.loads(data)
                 print("EM L354: ",election_message)
 
@@ -376,11 +376,13 @@ class Server():
                     self.leader = election_message['IP']
                     print("Leader is: " + self.leader)
                     participant = False
+                    ("Send election Message ", election_message, " to ", neighbour)
                     ringSocket.sendto(data,(neighbour,5892))
                     self.is_leader = False
                     ringSocket.close()
-                    return
                     
+                if election_message['isLeader'] & election_message['mid'] == self.my_uid:
+                    print("Election finished.")
 
                 if election_message['mid'] < self.my_uid and not participant:
                     new_election_message = {
@@ -390,11 +392,13 @@ class Server():
                     }
                     participant = True
                     ringSocket.sendto(pickle.dumps(new_election_message),(neighbour,5892))
+                    ("Send election Message ", new_election_message, " to ", neighbour)
                     ringSocket.close()
 
                 elif election_message['mid'] > self.my_uid:
                     participant = True
                     ringSocket.sendto(data,(neighbour,5892))
+                    ("Send election Message ", election_message, " to ", neighbour)
                     ringSocket.close()
 
                 elif election_message['mid'] == self.my_uid:
@@ -406,13 +410,16 @@ class Server():
                         "IP": self.ip_address
                     }
                     ringSocket.sendto(pickle.dumps(new_election_message),(neighbour,5892))
+                    ("Send election Message ", new_election_message, " to ", neighbour)
                     print("I AM LEADER")
                     ringSocket.close()
-                    return
+                
+
+                
                     
                 
                 
-                print("eof Leader is " + self.leader)
+                #print("eof Leader is " + self.leader)
             except socket.timeout:
                 self.election(server)
 
@@ -792,21 +799,22 @@ if __name__ == "__main__":
     # p_H.start()
     p_chat = threading.Thread(target=s.collect_chatrooms, args=())
     p_chat.start()
+    p_election = threading.Thread(target = s.election, args = (s,))
+    p_election.start()
     while True:
         if s.is_leader == True:
             p_join = threading.Thread(target = s.accept_Join, args = (s,))
             p_join.start()
             p_login = threading.Thread(target = s.accept_login, args = (s,))
             p_login.start()
-            p_election = threading.Thread(target = s.election, args = (s,))
-            p_election.start()
+
             
             p_heart = threading.Thread(target=heartbeats, args=())
             p_heart.start()
             
             p_login.join()
             p_join.join()
-            p_election.join()
+            #p_election.join()
             
             p_heart.join()
 
@@ -816,8 +824,8 @@ if __name__ == "__main__":
 
             p_clientUpdate = threading.Thread(target = s.update_clientlist, args = (s,))
             p_clientUpdate.start()
-            p_election = threading.Thread(target = s.election, args = (s,))
-            p_election.start()
+            #p_election = threading.Thread(target = s.election, args = (s,))
+            #p_election.start()
 
             
             p_heart = threading.Thread(target= heartbeats, args=())
