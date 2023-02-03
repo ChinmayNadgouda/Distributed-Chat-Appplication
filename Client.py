@@ -140,8 +140,9 @@ class Client():
 
                     # handle the delivery and hbq continously.
                     
-                    #if vector === our vector means message is duplicate and discard
-                    #but if vector === our vector and cl_ip is our own print it
+                    #if rcvd vector === our vector means message is duplicate and discard
+                    #but if rcvd vector === our vector and cl_ip is our own ip print it and continue
+
                     if(self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip]):
 
                         self.increment_vector_clock()
