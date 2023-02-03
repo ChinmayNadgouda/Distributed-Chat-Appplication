@@ -495,7 +495,7 @@ class Server():
                 return False
 
     def heart_beating(self):
-        time.sleep(10)
+        #time.sleep(10)
         for server in self.group_view:
             #time.sleep(10) #heartbeats after 60 seconds
             if self.is_leader == False:
@@ -530,7 +530,7 @@ class Server():
                         print("Server {} is alive:".format(server_ip))
                         self.server_heatbeat_list[server_ip] = 0      #later make this ip
                 else:
-                    if self.server_heatbeat_list[server_ip] > 1:   #later make this ip and change to 3 tries i.e 2
+                    if self.server_heatbeat_list[server_ip] > 3:   #later make this ip and change to 3 tries i.e 2
                         print("Server {} {} is dead:".format(server_ip,server_id))
                         #print("Update Group view and Replicate its clients to new server, choose a new server all this at next heartbeat")
                         self.server_heatbeat_list[server_ip] = 0   #later make this ip
@@ -606,9 +606,9 @@ class Server():
                 UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
                 # UDPServerSocket.setblocking(0)
                 if heartbeat_leader:
-                    UDPServerSocket.settimeout(45)
+                    UDPServerSocket.settimeout(5)
                 if heatbeat_server:
-                    UDPServerSocket.settimeout(15)
+                    UDPServerSocket.settimeout(45)
                 if chatroom_timeout:
                     UDPServerSocket.settimeout(5)
                 UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
