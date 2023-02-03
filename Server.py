@@ -759,7 +759,9 @@ class Server():
             print('TEST, ',self.chatrooms_handled)
             for chatroom in self.chatrooms_handled:
                 if int(chatroom['inPorts'][0]) == int(chatroom_inport):
+                    number_of_clients = len(chatroom['clients_handled'])
                     for clients in chatroom['clients_handled']:
+                        
                         actual_client = json.loads(clients)
                         to_client_ip = actual_client['IP']
                         to_client_port = actual_client['outPorts']
@@ -771,7 +773,7 @@ class Server():
                         thread.start()
                         thread.join()
             print("ACKcount_a", self.ack_counter[from_client_ip][chatroom_inport])
-            if self.ack_counter[from_client_ip][chatroom_inport] == len(self.clients_handled):
+            if self.ack_counter[from_client_ip][chatroom_inport] == len(number_of_clients):
                 # for all clinets send sent!
                 thread = threading.Thread(target=self.write_to_client,
                                           args=("sent", from_client_ip, int(from_inport),))
