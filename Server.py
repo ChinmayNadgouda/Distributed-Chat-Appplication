@@ -773,7 +773,7 @@ class Server():
                         thread.start()
                         thread.join()
             print("ACKcount_a", self.ack_counter[from_client_ip][chatroom_inport])
-            if self.ack_counter[from_client_ip][chatroom_inport] == len(number_of_clients):
+            if self.ack_counter[from_client_ip][chatroom_inport] == number_of_clients:
                 # for all clinets send sent!
                 thread = threading.Thread(target=self.write_to_client,
                                           args=("sent", from_client_ip, int(from_inport),))
