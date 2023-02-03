@@ -273,6 +273,7 @@ class Server():
                 inports,outports = self.ports_calc()
                 newServer = {"serverID": newServerID, "IP" : newServerIP.decode(),"chatrooms_handled" : [{"inPorts": inports, "outPorts": outports, 'clients_handled':[]}],'heartbeat_port':4444}
                 self.group_view.append(newServer)
+                print('SET TO ZERO 4')
                 self.server_heatbeat_list[newServerIP.decode()] = 0     ##made this change
                 message = pickle.dumps(self.group_view)
                 print(message)
@@ -506,6 +507,7 @@ class Server():
             server_ip = server['IP']
             server_port = server['heartbeat_port']
             if self.leader_for_first_time:
+                print('SET TO ZERO 1')
                 self.server_heatbeat_list[server_ip] = 0
                 self.leader_for_first_time = False
             #print('BEFORE',self.group_view)
@@ -527,12 +529,14 @@ class Server():
                 print("SERVER HB RCVD",listen_heartbeat)
                 if listen_heartbeat:
                     if listen_heartbeat[1] == b'heartbeat_recvd':
-                        print("Server {} is alive:".format(server_ip))
-                        self.server_heatbeat_list[server_ip] = 0      #later make this ip
+                        print("Server {} is alive:".format(listen_heartbeat[0][0]))
+                        print('SET TO ZERO 2')
+                        self.server_heatbeat_list[listen_heartbeat[0][0]] = 0      #later make this ip
                 else:
                     if self.server_heatbeat_list[server_ip] > 3:   #later make this ip and change to 3 tries i.e 2
                         print("Server {} {} is dead:".format(server_ip,server_id))
                         #print("Update Group view and Replicate its clients to new server, choose a new server all this at next heartbeat")
+                        print('SET TO ZERO 3')
                         self.server_heatbeat_list[server_ip] = 0   #later make this ip
                         #inform all other servers
                         new_group_view = []
@@ -548,13 +552,13 @@ class Server():
                         self.group_view = new_group_view
                         min_cli = 10000
                         clients_transfered = False
-
+                        print('SERVER DEAD GV',self.group_view)
                         for servers in self.group_view:
                             for chatrooms in servers['chatrooms_handled']:
                                 min_cli = min(len(chatrooms['clients_handled']),min_cli)
                         for servers in self.group_view:
                             if clients_transfered == True:
-                                break
+                                continue
                             for chatrooms in servers['chatrooms_handled']:
                                 #print(chatrooms)
                                 if len(chatrooms['clients_handled']) == min_cli:
@@ -588,16 +592,17 @@ class Server():
             if self.is_leader:
                 is_leader = self.heart_beating()    #should this start new thread
                 if is_leader:
-                    self.leader_for_first_time = True
+                    #self.leader_for_first_time = True
                     print('Not leader anymore 2')
                     return True
             else:
                 is_leader = self.heart_beat_recving()
                 print("HB MECHA:",is_leader,self.group_view)
                 for server in self.group_view:
-                        self.server_heatbeat_list[server['IP']] = 0
+                    print('sseeting 0 hereeee')
+                    self.server_heatbeat_list[server['IP']] = 0
                 if is_leader:
-                    
+                    #self.leader_for_first_time = True
                     return
 
         # get the messaged passed from clients ( have a message queue )

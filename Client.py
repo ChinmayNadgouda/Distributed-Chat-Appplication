@@ -46,7 +46,7 @@ class Client():
                 else:
                     self.send_message(self.server_ip, self.server_inport, "client_id" + ",send_msg," + "chatroom_id" + "," + message_to_send)
                     data = self.recieve_message(client_outport)
-                    print("[IN]",ata)
+                    print("[IN]",data)
 
 
     def chatroom_output(self):
