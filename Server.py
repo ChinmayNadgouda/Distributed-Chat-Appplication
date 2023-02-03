@@ -36,7 +36,7 @@ import threading
 leader_ip = localIP
 localPort_in   = 5002     #chat inroom
 localPort_out = 5003      #chat outroom
-local_server_port = 4443   #heartbeat
+local_server_port = 4444   #heartbeat
 
 
 
@@ -231,7 +231,7 @@ class Server():
             print("I AM LEADER!")
             self.leader = self.ip_address
             self.is_leader = True
-            self.group_view.append({"serverID": 0, "IP" : self.ip_address, "chatrooms_handled" : [{"inPorts": [5000], "outPorts": [5001], 'clients_handled':[]}],'heartbeat_port':4443})
+            self.group_view.append({"serverID": 0, "IP" : self.ip_address, "chatrooms_handled" : [{"inPorts": [5000], "outPorts": [5001], 'clients_handled':[]}],'heartbeat_port':4444})
             self.server_id = 0
             self.leader_id = 0
             print(self.group_view)
@@ -461,7 +461,7 @@ class Server():
         else:
             return None
     def heart_beat_recving(self):
-
+        print('Leisten to leader HB ',)
         leader_heartbeat = self.read_client(4444,False,heartbeat_leader=False,heatbeat_server=True)    #fix this port to own heartbeat port
         print("LEADER_HB_ RCCVD",leader_heartbeat)
         if leader_heartbeat:
@@ -471,6 +471,8 @@ class Server():
                 thread.start()
                 thread.join()
         else:
+            if self.is_leader:
+                return True
             print('Leader is dead,start election')
             print('Update groupview and election start')
             #if (self.leader_id + 1)%len(self.group_view) == self.server_id: 
@@ -493,6 +495,7 @@ class Server():
                 return False
 
     def heart_beating(self):
+        time.sleep(10)
         for server in self.group_view:
             #time.sleep(10) #heartbeats after 60 seconds
             if self.is_leader == False:
@@ -505,19 +508,22 @@ class Server():
             if self.leader_for_first_time:
                 self.server_heatbeat_list[server_ip] = 0
                 self.leader_for_first_time = False
-            print('BEFORE',self.group_view)
+            #print('BEFORE',self.group_view)
             if server_ip != self.leader:
                 thread = threading.Thread(target=self.write_to_client,args=("heartbeat",server_ip,server_port,))
                 thread.start()
 
                 pool = ThreadPool(processes=1)
 
+                
                 async_result = pool.apply_async(self.read_client, (local_server_port,False,True,False))  # tuple of args for foo
 
                 # do some other stuff in the main process
 
                 listen_heartbeat = async_result.get()
                 print(self.server_heatbeat_list)
+                if self.is_leader == False: 
+                    return True
                 print("SERVER HB RCVD",listen_heartbeat)
                 if listen_heartbeat:
                     if listen_heartbeat[1] == b'heartbeat_recvd':
@@ -582,7 +588,7 @@ class Server():
             if self.is_leader:
                 is_leader = self.heart_beating()    #should this start new thread
                 if is_leader:
-                    self.self.leader_for_first_time = True
+                    self.leader_for_first_time = True
                     print('Not leader anymore 2')
                     return True
             else:
@@ -600,7 +606,7 @@ class Server():
                 UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
                 # UDPServerSocket.setblocking(0)
                 if heartbeat_leader:
-                    UDPServerSocket.settimeout(5)
+                    UDPServerSocket.settimeout(45)
                 if heatbeat_server:
                     UDPServerSocket.settimeout(15)
                 if chatroom_timeout:
@@ -834,7 +840,7 @@ if __name__ == "__main__":
             print("join joined")
             #p_election.join()
             
-            p_heart.join()
+            #p_heart.join()
             print("hearbeat leader joined")
 
         else:
@@ -857,7 +863,7 @@ if __name__ == "__main__":
             print("Clientupdate joined")
             #p_election.join()
             
-            p_heart.join()
+            #p_heart.join()
             print("heartbeat nonleader joined")
 
 
