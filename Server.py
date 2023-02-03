@@ -19,7 +19,7 @@ import uuid
 MY_HOST = socket.gethostname()
 localIP     = socket.gethostbyname(MY_HOST) 
 
-BROADCAST_IP = "192.168.0.255" #needs to be reconfigured depending on network
+BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
 
 localPort   = 10001      #broadcast servers
 
@@ -97,7 +97,7 @@ class Server():
     #broadcast_socket = None
     #LeaderServerSocket = None
     #ringSocket = None
-
+    leader_for_first_time = True
 
 
     def __init__(self):
@@ -496,11 +496,16 @@ class Server():
         for server in self.group_view:
             #time.sleep(10) #heartbeats after 60 seconds
             if self.is_leader == False:
+                print('Not leader anymore')
                 return True
 
             server_id = server['serverID']
             server_ip = server['IP']
             server_port = server['heartbeat_port']
+            if self.leader_for_first_time:
+                self.server_heatbeat_list[server_ip] = 0
+                self.leader_for_first_time = False
+            print('BEFORE',self.group_view)
             if server_ip != self.leader:
                 thread = threading.Thread(target=self.write_to_client,args=("heartbeat",server_ip,server_port,))
                 thread.start()
@@ -577,6 +582,8 @@ class Server():
             if self.is_leader:
                 is_leader = self.heart_beating()    #should this start new thread
                 if is_leader:
+                    self.self.leader_for_first_time = True
+                    print('Not leader anymore 2')
                     return True
             else:
                 is_leader = self.heart_beat_recving()
