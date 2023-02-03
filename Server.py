@@ -691,9 +691,10 @@ class Server():
         client_req = data_list[1]
         chatroom_id = data_list[2]
         client_message = data_list[3]
+        vc = data_list[4]
         client_port_out = data_list[-2]
         client_port = data_list[-1]
-        return [client_id, client_req, chatroom_id, client_message, client_port_out, client_port]
+        return [client_id, client_req, chatroom_id, client_message,vc, client_port_out, client_port]
 
     def collect_chatrooms(self):
         try:
@@ -749,7 +750,7 @@ class Server():
             # callvector_check
 
             from_client_ip = bytesAddressPair[0][0]
-            client_id, data, chatroom_id, message, from_port, from_inport = self.parse_client_message(
+            client_id, data, chatroom_id, message, vc,from_port, from_inport = self.parse_client_message(
                 message_from_client)
 
 
@@ -769,7 +770,7 @@ class Server():
                         # if to_client_ip == from_client_ip and to_client_port_ack == from_inport:   #notneeded
                         #     sender_inport = to_client_port_ack
                         thread = threading.Thread(target=self.write_to_client_with_ack,
-                                                args=(message, to_client_ip, to_client_port, from_client_ip,chatroom_inport,chatroom_outport,))
+                                                args=(message+","+vc+","+from_client_ip, to_client_ip, to_client_port, from_client_ip,chatroom_inport,chatroom_outport,))
                         thread.start()
                         thread.join()
             print("ACKcount_a", self.ack_counter[from_client_ip][chatroom_inport])
