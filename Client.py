@@ -16,14 +16,13 @@ BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
 bufferSize  = 1024
 #get own IP
 MY_HOST = socket.gethostname()
-MY_IP = socket.gethostbyname(MY_HOST)
+MY_IP = "192.168.43.205"#socket.gethostbyname(MY_HOST)
 local_ip = MY_IP
 client_inport = 5566
 client_outport = 5565
 
 #To implement the causality.
-holdback_q = Queue()
-delivery_q = Queue()
+
 
 class Client():
     server_port = 10001
@@ -34,8 +33,8 @@ class Client():
     #Dictionary to store vector clock.
     vector_clock = {}
     rcvd_vc = {}
-    holdback_q = []
-    delivery_q = []
+    holdback_q = Queue()
+    delivery_q = Queue()
 
     def __init__(self):
         pass
@@ -68,18 +67,26 @@ class Client():
             self.vector_clock = json.load(file)
 
     def hold_back_processing(self):
-        self.load_vector_clock()
-        if self.holdback_q.empty():
+        try:
+
+            if self.holdback_q.empty():
+                self.hold_back_processing()
+            else:
+                print("HB+Q",self.holdback_q)
+            self.load_vector_clock()
+            list = self.holdback_q.get_nowait()
+            message = list[0]
+            rcvd_vc_data=list[1]
+            cl_ip = list[2]
+            if(self.vector_clock[cl_ip] + 1 == rcvd_vc_data[cl_ip]):     
+                self.increment_vector_clock()
+                self.update_vector_clock(rcvd_vc_data)
+                self.save_vector_clock()
+                self.delivery_q.put_nowait(message)
+            else:
+                self.holdback_q.put_nowait([message,rcvd_vc_data,cl_ip])
+        except RecursionError:
             self.hold_back_processing()
-        
-        message,rcvd_vc_data,cl_ip = self.holdback_q.get_nowait()
-        if(self.vector_clock[cl_ip] + 1 == rcvd_vc_data[cl_ip]):     
-            self.increment_vector_clock()
-            self.update_vector_clock(rcvd_vc_data)
-            self.save_vector_clock()
-            delivery_q.put_nowait(message)
-        else:
-            self.holdback_q.put_nowait(message,rcvd_vc_data,cl_ip)
 
     def chatroom_input(self):
         while(True):
@@ -112,52 +119,58 @@ class Client():
 
     def chatroom_output(self):
         #send_message(self.server_ip, inport,"client_id"+",join,"+str(inport)+","+"join")
-        while True:
-            p_leader_listen = threading.Thread(target=client.keep_listening_to_leader,args=(True,))
-            p_leader_listen.start()
-            data = self.recieve_message(client_outport)
-            print('Listening to server',self.server_ip)
+        try:
+            while True:
+                p_leader_listen = threading.Thread(target=client.keep_listening_to_leader,args=(True,))
+                p_leader_listen.start()
+                data = self.recieve_message(client_outport)
+                print('Listening to server',self.server_ip)
 
-            rcvd_msg = data.split(",")
+                if data:
+                    rcvd_msg = data.decode().split(",")
 
-            message = rcvd_msg[0]
-            rcvd_vc_data = rcvd_msg[1]
-            cl_ip = rcvd_msg[2]
+                    message = rcvd_msg[0]
+                    rcvd_vc_data = rcvd_msg[1]
+                    cl_ip = rcvd_msg[2]
 
-            self.rcvd_vc = json.loads(rcvd_vc_data)
-            self.load_vector_clock()
+                    self.rcvd_vc = json.loads(rcvd_vc_data)
+                    self.load_vector_clock()
 
-            self.check_if_new_client(self.rcvd_vc)
+                    self.check_if_new_client(self.rcvd_vc)
 
-            # handle the delivery and hbq continously.
-            
-            
-            if(self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip]):
+                    # handle the delivery and hbq continously.
+                    
+                    #if vector === our vector means message is duplicate and discard
+                    #but if vector === our vector and cl_ip is our own print it
+                    if(self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip]):
 
-                self.increment_vector_clock()
-                self.update_vector_clock(self.rcvd_vc)
-                self.save_vector_clock()
+                        self.increment_vector_clock()
+                        self.update_vector_clock(self.rcvd_vc)
+                        self.save_vector_clock()
 
 
 
-                delivery_q.put_nowait(message)
+                        self.delivery_q.put_nowait(message)
 
-            else:
-                self.increment_vector_clock()
-                #self.update_vector_clock(self.rcvd_vc)
-                self.save_vector_clock()
+                    else:
+                        self.increment_vector_clock()
+                        #self.update_vector_clock(self.rcvd_vc)
+                        self.save_vector_clock()
 
-                holdback_q.put_nowait(message, self.rcvd_vc,cl_ip)
+                        self.holdback_q.put_nowait([message, self.rcvd_vc,cl_ip])
+                    if self.delivery_q.empty():
+                        continue
+                    message_to_be_sent = self.delivery_q.get_nowait()
 
-            message_to_be_sent = delivery_q.get_nowait()
+                    if (message_to_be_sent != None):
 
-            if (message_to_be_sent != None):
-
-                self.send_message(self.server_ip, self.server_outport,"client_id"+",recvd,"+str(self.server_inport))
-                #data_ack2 = recieve_message()
-                #if data_ack2 == b'sent':
-                #print(data)
-                print("[OUT]",message_to_be_sent)
+                        self.send_message(self.server_ip, self.server_outport,"client_id"+",recvd,"+str(self.server_inport))
+                        #data_ack2 = recieve_message()
+                        #if data_ack2 == b'sent':
+                        #print(data)
+                        print("[OUT]",message_to_be_sent)
+        except Exception as e:
+            print("Queue exception",e)
 
     def send_message(self,s_address, s_port, message_to_b_sent):
         try:
