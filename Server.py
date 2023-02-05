@@ -132,9 +132,7 @@ class Server():
                     return
                 UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
                 UDPServerSocket.bind((localIP, localPort))
-                #UDPServerSocket.bind(("0.0.0.0", localPort)) #changed_remove
                 UDPServerSocket.settimeout(10)
-                print("Listening to client messages")
                 data = self.broadcastlistener(UDPServerSocket,'client')
                 UDPServerSocket.close()
                 userInformation = data.decode().split(',')
@@ -143,14 +141,12 @@ class Server():
 
 
                 #send answer
-                #TODO fetch table of all available Chatrooms and send it to Client
-                print("Send to " + newUser['IP'])
+                print("Send groupview to " + newUser['IP'])
                 send_group_view_to_client = pickle.dumps(self.group_view)
                 self.send_Message(newUser['IP'], send_group_view_to_client)
 
                 ##client selection reply
                 UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-                # UDPServerSocket.bind((localIP, localPort))
                 UDPServerSocket.bind((localIP, localPort))  # changed_remove
                 UDPServerSocket.settimeout(10)
                 print("Listening to client messages response to join chatroom")
@@ -167,30 +163,16 @@ class Server():
                             new_chatroom_clients.append(clients)
                         new_chatroom_clients.append(json.dumps(userSelection))
                         chatrooms['clients_handled'] = set(new_chatroom_clients)
-                #self.server_list[userInformation]['clients_handled'] = []
-                #self.server_list[userInformation]['clients_handled'].append()
-                #self.group_view[int(selected_server_id)]['clients_handled'] = set(self.group_view[int(selected_server_id)]['clients_handled'])
-                #self.client_list.append(newUser)
-                #message = pickle.dumps(self.client_list)
-                #print(self.client_list)
-                #self.sendto_allServers(server, message, 5045)
 
                 message = pickle.dumps(self.group_view)
-                print(self.group_view)
-                for val in set(self.group_view[1]['chatrooms_handled'][0]['clients_handled']):
-                    print('test client sets',type(json.loads(val)))
+                #for val in set(self.group_view[1]['chatrooms_handled'][0]['clients_handled']):
+                    #print('test client sets',type(json.loads(val)))
                 self.sendto_allServers(server, message, 5044)  #all servers will get this and update their groupview and set clients
                 self.send_Message(userSelection['IP'], b"please now connect to the server assigned and chatroom")
                 #await chatID from Client
-                #self.clientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-                #self.clientSocket.bind((localIP, 5001))
-                #data, server = self.clientSocket.recvfrom(bufferSize)
-                #self.clientSocket.close()
-                #print('Received message: ', data.decode())
-                #TODO check if chatID exists if not, create chat; send serverIP with chat to client
+
                 if self.is_leader == False:
                     return
-                #print(newUser)    
             except socket.timeout:
                 UDPServerSocket.close()
                 self.accept_login(server)
@@ -217,7 +199,7 @@ class Server():
             self.group_view = pickle.loads(data)
             print("I got data: " + str(self.group_view))
             self.leader = server[0]
-            print("Leader: " + self.leader + "GroupView: " + str(self.group_view))
+            #print("Leader: " + self.leader + "GroupView: " + str(self.group_view))
             for server in self.group_view:
                 if server['IP'] == self.ip_address:
                     self.server_id = server['serverID']
@@ -234,7 +216,6 @@ class Server():
             self.group_view.append({"serverID": 0, "IP" : self.ip_address, "chatrooms_handled" : [{"inPorts": [5000], "outPorts": [5001], 'clients_handled':[]}],'heartbeat_port':4444})
             self.server_id = 0
             self.leader_id = 0
-            print(self.group_view)
         LeaderServerSocket.close()
     def ports_calc(self):
         current_ports = []
@@ -264,8 +245,6 @@ class Server():
                 LeaderServerSocket.settimeout(4)
                 LeaderServerSocket.bind((localIP, 5043))
 
-                #LeaderServerSocket.bind(("0.0.0.0", 5043)) #changed_remove
-                print('Listening to Server mesages')
                 newServerIP = self.broadcastlistener(LeaderServerSocket,'server')
                 LeaderServerSocket.close()
                 print(self.group_view)
@@ -273,7 +252,6 @@ class Server():
                 inports,outports = self.ports_calc()
                 newServer = {"serverID": newServerID, "IP" : newServerIP.decode(),"chatrooms_handled" : [{"inPorts": inports, "outPorts": outports, 'clients_handled':[]}],'heartbeat_port':4444}
                 self.group_view.append(newServer)
-                print('SET TO ZERO 4')
                 self.server_heatbeat_list[newServerIP.decode()] = 0     ##made this change
                 message = pickle.dumps(self.group_view)
                 print(message)
@@ -301,7 +279,6 @@ class Server():
         #Port 5044: Groupview, Port 5045: Clientlist 
         LeaderServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         for i in self.group_view:
-            print(i['IP'])
             LeaderServerSocket.sendto(message, (i['IP'],port))
         LeaderServerSocket.close()
 
@@ -355,7 +332,7 @@ class Server():
         #ringSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)  #changed_remove
         #ringSocket.bind((self.ip_address, 5892))
         message = pickle.dumps({"mid": self.my_uid, "isLeader": False, "IP": self.ip_address})
-        print("Send message ", pickle.loads(message), "to ", neighbour)
+        print("Started election, send message ", pickle.loads(message), "to ", neighbour)
         ringSocket.sendto(message,(neighbour,5892))
         #ringSocket.sendto(message,(neighbour,5892))
         ringSocket.close()
@@ -372,7 +349,7 @@ class Server():
             ring = self.form_ring(self.server_list)
             neighbour = self.get_neighbour(ring, self.ip_address,'left')
             
-            print("Waiting for Election Messages at time ", time.time())
+            print("Waiting for Election Messages")
             
             data, adress = ringSocket.recvfrom(bufferSize)
             #print (pickle.loads(data))
@@ -382,7 +359,7 @@ class Server():
             neighbour = self.get_neighbour(ring, self.ip_address,'left')
             election_message = pickle.loads(data)
             print("Election message:", election_message)
-            print("case 1: ", election_message['mid'] < self.my_uid and not participant, " case2: ", election_message['isLeader'] and ( election_message['mid'] == self.my_uid), " case 3: ", election_message['mid'] < self.my_uid and not participant, " case 4: ", election_message['mid'] > self.my_uid, " case 5: ", election_message['mid'] == self.my_uid)
+            #print("case 1: ", election_message['mid'] < self.my_uid and not participant, " case2: ", election_message['isLeader'] and ( election_message['mid'] == self.my_uid), " case 3: ", election_message['mid'] < self.my_uid and not participant, " case 4: ", election_message['mid'] > self.my_uid, " case 5: ", election_message['mid'] == self.my_uid)
 
             if election_message['isLeader'] and not election_message['mid'] == self.my_uid:
                 self.leader = election_message['IP']
@@ -429,8 +406,6 @@ class Server():
                     
                 
                 ringSocket.close()
-                print("ende")
-
 
 
     def update_serverlist(self, server):
@@ -439,7 +414,7 @@ class Server():
         for i in self.group_view:
             self.server_list.append(i['IP'])
         self.server_list = list(dict.fromkeys(self.server_list))
-        print("UPDATED SERVER LIST : ",self.server_list)
+        #print("UPDATED SERVER LIST : ",self.server_list)
 
     def form_ring(self, member_list):
         sorted_binary_ring = sorted([socket.inet_aton(member) for member in member_list])
@@ -843,13 +818,10 @@ if __name__ == "__main__":
             p_heart.start()
             
             p_login.join()
-            print("login joined")
             p_join.join()
-            print("join joined")
             #p_election.join()
             
             #p_heart.join()
-            print("hearbeat leader joined")
 
         else:
             p_groupviewUpdate = threading.Thread(target = s.update_groupview, args = (s,))
@@ -866,13 +838,10 @@ if __name__ == "__main__":
             
             
             p_groupviewUpdate.join()
-            print("Groupview Update joined")
             p_clientUpdate.join()
-            print("Clientupdate joined")
             #p_election.join()
             
             #p_heart.join()
-            print("heartbeat nonleader joined")
 
 
 
