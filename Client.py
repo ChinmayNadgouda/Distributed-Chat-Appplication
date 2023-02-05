@@ -20,16 +20,13 @@ MY_IP = "192.168.43.205"#socket.gethostbyname(MY_HOST)
 local_ip = MY_IP
 client_inport = 5566
 client_outport = 5565
-
-#To implement the causality.
-
-
 class Client():
     server_port = 10001
     server_inport = 0
     server_outport =  0
     server_ip = ''
 
+    #To implement the causality.
     #Dictionary to store vector clock.
     vector_clock = {}
     rcvd_vc = {}
@@ -78,6 +75,8 @@ class Client():
             message = list[0]
             rcvd_vc_data=list[1]
             cl_ip = list[2]
+            
+            #check for the message to be next in the sequence.
             if(self.vector_clock[cl_ip] + 1 == rcvd_vc_data[cl_ip]):     
                 self.increment_vector_clock()
                 self.update_vector_clock(rcvd_vc_data)
@@ -142,14 +141,19 @@ class Client():
                     
                     #if rcvd vector === our vector means message is duplicate and discard
                     #but if rcvd vector === our vector and cl_ip is our own ip print it and continue
+                    if(self.vector_clock == self.rcvd_vc) and cl_ip != local_ip:
+                        break;
 
-                    if(self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip]):
+
+                    if(self.vector_clock == self.rcvd_vc) and cl_ip == local_ip:
+                        print("[OUT]",message)
+                        continue
+
+                    elif(self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip]):
 
                         self.increment_vector_clock()
                         self.update_vector_clock(self.rcvd_vc)
                         self.save_vector_clock()
-
-
 
                         self.delivery_q.put_nowait(message)
 
@@ -159,6 +163,7 @@ class Client():
                         self.save_vector_clock()
 
                         self.holdback_q.put_nowait([message, self.rcvd_vc,cl_ip])
+                        
                     if self.delivery_q.empty():
                         continue
                     message_to_be_sent = self.delivery_q.get_nowait()
