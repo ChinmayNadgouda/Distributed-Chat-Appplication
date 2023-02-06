@@ -1,0 +1,128 @@
+SERVER
+
+
+def accept_login(self, server):
+        
+        while True:
+            try:
+                if self.is_leader == False:
+                    return
+                UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+                UDPServerSocket.bind((localIP, localPort))
+                UDPServerSocket.settimeout(10)
+                data = self.broadcastlistener(UDPServerSocket,'client')
+                UDPServerSocket.close()
+                userInformation = data.decode().split(',')
+                print(userInformation)
+                newUser = {'IP' : userInformation[0], 'userName' : userInformation[1], "chatID": 0}
+
+
+                #send answer
+                print("Send groupview to " + newUser['IP'])
+                send_group_view_to_client = pickle.dumps(self.group_view)
+                
+                self.send_Message(newUser['IP'], send_group_view_to_client)
+                
+                ##client selection reply
+                UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+                UDPServerSocket.bind((localIP, localPort))  # changed_remove
+                UDPServerSocket.settimeout(10)
+                print("Listening to client messages response to join chatroom")
+                data = self.broadcastlistener(UDPServerSocket, 'client')
+                UDPServerSocket.close()
+                userSelection = pickle.loads(data)
+                #print(userSelection)
+                selected_server_id = userSelection['selected_server']
+                selected_charoom = userSelection['selected_chatroom']
+                for chatrooms in self.group_view[int(selected_server_id)]['chatrooms_handled']:
+                    if chatrooms['inPorts'][0] == selected_charoom:
+                        new_chatroom_clients = []
+                        for clients in chatrooms['clients_handled']:
+                            new_chatroom_clients.append(clients)
+                        new_chatroom_clients.append(json.dumps(userSelection))
+                        chatrooms['clients_handled'] = set(new_chatroom_clients)
+
+                message = pickle.dumps(self.group_view)
+                #for val in set(self.group_view[1]['chatrooms_handled'][0]['clients_handled']):
+                    #print('test client sets',type(json.loads(val)))
+                self.sendto_allServers(server, message, 5044)  #all servers will get this and update their groupview and set clients
+                time.sleep(1)
+                self.send_Message(userSelection['IP'], b"please now connect to the server assigned and chatroom")
+                #await chatID from Client
+
+                if self.is_leader == False:
+                    return
+            except socket.timeout:
+                UDPServerSocket.close()
+                self.accept_login(server)
+            except UnicodeDecodeError:
+                UDPServerSocket.close()
+                self.accept_login(server)
+            except pickle.UnpicklingError:
+                UDPServerSocket.close()
+                self.accept_login(server)
+            finally:
+                UDPServerSocket.close()
+
+
+
+CLIENT
+
+   def login(self,userName):
+        try:
+            message = MY_IP + ',' + userName
+            broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # changed_remove
+
+            self.broadcast(BROADCAST_IP, self.server_port, message,broadcast_socket) # changed_remove
+            broadcast_socket.close()
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            client_socket.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+            client_socket.settimeout(12)
+            client_socket.bind((MY_IP, 5000))
+
+            print('Waiting for response...')    #should this have a timeout
+            data, server = client_socket.recvfrom(bufferSize)
+            client_socket.close()
+            server_list = pickle.loads(data)
+            print('Select a server id  and corresponding chatroom id (inport) to get into a chatroom: ', server_list)
+            selected_server = input("Give the server ip:  ")
+            selected_chatroom = input("Give the chatroom id (inport):  ")
+            for server in server_list:
+                if int(selected_server) == server['serverID']:
+                    for chatrooms in server['chatrooms_handled']:
+                        if chatrooms['inPorts'][0] == int(selected_chatroom):
+                            print("Configuring the chatroom")
+                            inport = chatrooms['inPorts']
+                            outport = chatrooms['outPorts']
+                            self.server_ip = server['IP']
+            # server_ip = data.decode()
+            # print("Communicate with server: " + server_ip)
+            #later loop inports and outpots to select which chatroom
+            print("Chatroom available on ports  [IN]:[OUT] - ",inport[0],outport[0])
+            self.server_inport = inport[0]
+            self.server_outport = outport[0]
+            client = {'IP': MY_IP, "inPorts": client_inport , "outPorts": client_outport, "selected_server":selected_server, "selected_chatroom": inport[0]}
+            client_object = pickle.dumps(client)
+            broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # changed_remove
+            self.broadcast(BROADCAST_IP, self.server_port, client_object, broadcast_socket)  # changed_remove
+
+            broadcast_socket.close()
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            client_socket.bind((MY_IP, 5000))
+            client_socket.settimeout(3)
+            print('Waiting for response...')  #should this have a timeout
+            data, server = client_socket.recvfrom(bufferSize)
+            client_socket.close()
+            print(data)
+            return self.server_ip, self.server_inport,self.server_outport
+            #time.sleep(10)
+            #after_login(inport[0],outport[0])
+        except socket.timeout:
+            client_socket.close()
+            self.login(userName)
+        finally:
+            client_socket.close()
+    # def after_login():
+    #     return True
