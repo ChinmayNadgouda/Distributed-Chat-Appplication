@@ -65,7 +65,7 @@ class Server():
 
     #to determine if the leader has been elected
     is_leader = False
-
+    
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
@@ -123,6 +123,7 @@ class Server():
         UDPServerSocket.close()
 
     def accept_login(self, server):
+        
         while True:
             try:
                 if self.is_leader == False:
@@ -140,9 +141,9 @@ class Server():
                 #send answer
                 print("Send groupview to " + newUser['IP'])
                 send_group_view_to_client = pickle.dumps(self.group_view)
-                time.sleep(1)
+                
                 self.send_Message(newUser['IP'], send_group_view_to_client)
-
+                
                 ##client selection reply
                 UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
                 UDPServerSocket.bind((localIP, localPort))  # changed_remove
@@ -175,6 +176,14 @@ class Server():
             except socket.timeout:
                 UDPServerSocket.close()
                 self.accept_login(server)
+            except UnicodeDecodeError:
+                UDPServerSocket.close()
+                self.accept_login(server)
+            except pickle.UnpicklingError:
+                UDPServerSocket.close()
+                self.accept_login(server)
+            finally:
+                UDPServerSocket.close()
 
     def broadcast(self, ip, port, broadcast_message):
         # Create a UDP socket

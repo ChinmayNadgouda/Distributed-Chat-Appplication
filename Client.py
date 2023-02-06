@@ -331,55 +331,61 @@ class Client():
 
         #get the server ip, in port and out port and update current values
     def login(self,userName):
-        message = MY_IP + ',' + userName
-        broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # changed_remove
+        try:
+            message = MY_IP + ',' + userName
+            broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # changed_remove
 
-        self.broadcast(BROADCAST_IP, self.server_port, message,broadcast_socket) # changed_remove
-        broadcast_socket.close()
-        client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        client_socket.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-        client_socket.bind((MY_IP, 5000))
+            self.broadcast(BROADCAST_IP, self.server_port, message,broadcast_socket) # changed_remove
+            broadcast_socket.close()
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            client_socket.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+            client_socket.settimeout(12)
+            client_socket.bind((MY_IP, 5000))
 
-        print('Waiting for response...')    #should this have a timeout
-        data, server = client_socket.recvfrom(bufferSize)
-        client_socket.close()
-        server_list = pickle.loads(data)
-        print('Select a server id  and corresponding chatroom id (inport) to get into a chatroom: ', server_list)
-        selected_server = input("Give the server ip:  ")
-        selected_chatroom = input("Give the chatroom id (inport):  ")
-        for server in server_list:
-            if int(selected_server) == server['serverID']:
-                for chatrooms in server['chatrooms_handled']:
-                    if chatrooms['inPorts'][0] == int(selected_chatroom):
-                        print("Configuring the chatroom")
-                        inport = chatrooms['inPorts']
-                        outport = chatrooms['outPorts']
-                        self.server_ip = server['IP']
-        # server_ip = data.decode()
-        # print("Communicate with server: " + server_ip)
-        #later loop inports and outpots to select which chatroom
-        print("Chatroom available on ports  [IN]:[OUT] - ",inport[0],outport[0])
-        self.server_inport = inport[0]
-        self.server_outport = outport[0]
-        client = {'IP': MY_IP, "inPorts": client_inport , "outPorts": client_outport, "selected_server":selected_server, "selected_chatroom": inport[0]}
-        client_object = pickle.dumps(client)
-        broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # changed_remove
-        self.broadcast(BROADCAST_IP, self.server_port, client_object, broadcast_socket)  # changed_remove
+            print('Waiting for response...')    #should this have a timeout
+            data, server = client_socket.recvfrom(bufferSize)
+            client_socket.close()
+            server_list = pickle.loads(data)
+            print('Select a server id  and corresponding chatroom id (inport) to get into a chatroom: ', server_list)
+            selected_server = input("Give the server ip:  ")
+            selected_chatroom = input("Give the chatroom id (inport):  ")
+            for server in server_list:
+                if int(selected_server) == server['serverID']:
+                    for chatrooms in server['chatrooms_handled']:
+                        if chatrooms['inPorts'][0] == int(selected_chatroom):
+                            print("Configuring the chatroom")
+                            inport = chatrooms['inPorts']
+                            outport = chatrooms['outPorts']
+                            self.server_ip = server['IP']
+            # server_ip = data.decode()
+            # print("Communicate with server: " + server_ip)
+            #later loop inports and outpots to select which chatroom
+            print("Chatroom available on ports  [IN]:[OUT] - ",inport[0],outport[0])
+            self.server_inport = inport[0]
+            self.server_outport = outport[0]
+            client = {'IP': MY_IP, "inPorts": client_inport , "outPorts": client_outport, "selected_server":selected_server, "selected_chatroom": inport[0]}
+            client_object = pickle.dumps(client)
+            broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # changed_remove
+            self.broadcast(BROADCAST_IP, self.server_port, client_object, broadcast_socket)  # changed_remove
 
-        broadcast_socket.close()
-        client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        client_socket.bind((MY_IP, 5000))
-
-        print('Waiting for response...')  #should this have a timeout
-        data, server = client_socket.recvfrom(bufferSize)
-        client_socket.close()
-        print(data)
-        return self.server_ip, self.server_inport,self.server_outport
-        #time.sleep(10)
-        #after_login(inport[0],outport[0])
-
+            broadcast_socket.close()
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            client_socket.bind((MY_IP, 5000))
+            client_socket.settimeout(3)
+            print('Waiting for response...')  #should this have a timeout
+            data, server = client_socket.recvfrom(bufferSize)
+            client_socket.close()
+            print(data)
+            return self.server_ip, self.server_inport,self.server_outport
+            #time.sleep(10)
+            #after_login(inport[0],outport[0])
+        except socket.timeout:
+            client_socket.close()
+            self.login(userName)
+        finally:
+            client_socket.close()
     # def after_login():
     #     return True
 
@@ -389,7 +395,8 @@ if __name__ == '__main__':
     client = Client()
     #Input User Information
     userName = input('Enter UserName ')
-    client.server_ip,client.server_inport,client.server_outport = client.login(userName)
+    #client.server_ip,client.server_inport,client.server_outport = client.login(userName)
+    client.login(userName)
     client.init_own_vector()
     client.init_vector_clock()
 
