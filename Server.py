@@ -746,7 +746,7 @@ class Server():
                         # if to_client_ip == from_client_ip and to_client_port_ack == from_inport:   #notneeded
                         #     sender_inport = to_client_port_ack
                         thread = threading.Thread(target=self.write_to_client_with_ack,
-                                                args=(message+","+vc+","+from_client_ip, to_client_ip, to_client_port, from_client_ip,chatroom_inport,chatroom_outport,))
+                                                args=(message+"-"+vc+"-"+from_client_ip, to_client_ip, to_client_port, from_client_ip,chatroom_inport,chatroom_outport,))
                         thread.start()
                         thread.join()
             print("ACKcount_a", self.ack_counter[from_client_ip][chatroom_inport])
