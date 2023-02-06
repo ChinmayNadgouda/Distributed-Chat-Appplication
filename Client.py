@@ -16,7 +16,7 @@ BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
 bufferSize  = 1024
 #get own IP
 MY_HOST = socket.gethostname()
-MY_IP = "192.168.43.236"#socket.gethostbyname(MY_HOST)
+MY_IP = "192.168.43.205"#socket.gethostbyname(MY_HOST)
 local_ip = MY_IP
 client_inport = 5566
 client_outport = 5565
@@ -48,6 +48,7 @@ class Client():
         for cl_ip, value in rcvd_vc.items():
             if cl_ip not in self.vector_clock:
                 self.vector_clock[cl_ip] = value
+                return True
 
     def init_own_vector(self):
         if local_ip not in self.vector_clock:
@@ -69,7 +70,7 @@ class Client():
             self.vector_clock = json.load(file)
 
     def increment_other_clients_vc(self):
-        for ip,value in self.vector_clock:
+        for ip,value in self.vector_clock.items():
             if ip != local_ip:
                 self.vector_clock[ip] += 1
 
@@ -161,14 +162,14 @@ class Client():
                     self.rcvd_vc = json.loads(rcvd_vc_data)
                     self.load_vector_clock()
 
-                    self.check_if_new_client(self.rcvd_vc,cl_ip)
+                    neww = self.check_if_new_client(self.rcvd_vc,cl_ip)
 
                     # handle the delivery and hbq continously.
                     print("OWN",self.vector_clock)
                     print("RCVD",self.rcvd_vc)
                     #if rcvd vector === our vector means message is duplicate and discard
                     #but if rcvd vector === our vector and cl_ip is our own ip print it and continue
-                    if(self.vector_clock == self.rcvd_vc) and cl_ip != local_ip:
+                    if(self.vector_clock == self.rcvd_vc) and cl_ip != local_ip and not neww:
                         continue;
 
                     if(self.vector_clock == self.rcvd_vc) and cl_ip == local_ip:
