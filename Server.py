@@ -155,13 +155,15 @@ class Server():
                 #print(userSelection)
                 selected_server_id = userSelection['selected_server']
                 selected_charoom = userSelection['selected_chatroom']
-                for chatrooms in self.group_view[int(selected_server_id)]['chatrooms_handled']:
-                    if chatrooms['inPorts'][0] == selected_charoom:
-                        new_chatroom_clients = []
-                        for clients in chatrooms['clients_handled']:
-                            new_chatroom_clients.append(clients)
-                        new_chatroom_clients.append(json.dumps(userSelection))
-                        chatrooms['clients_handled'] = set(new_chatroom_clients)
+                for server in self.group_view:
+                    if server['serverID'] == int(selected_server_id):
+                        for chatrooms in server['chatrooms_handled']:
+                            if chatrooms['inPorts'][0] == selected_charoom:
+                                new_chatroom_clients = []
+                                for clients in chatrooms['clients_handled']:
+                                    new_chatroom_clients.append(clients)
+                                new_chatroom_clients.append(json.dumps(userSelection))
+                                chatrooms['clients_handled'] = set(new_chatroom_clients)
 
                 message = pickle.dumps(self.group_view)
                 #for val in set(self.group_view[1]['chatrooms_handled'][0]['clients_handled']):
