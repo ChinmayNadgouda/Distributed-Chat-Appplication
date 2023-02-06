@@ -110,7 +110,7 @@ class Client():
         while(True):
             p_leader_listen = threading.Thread(target=client.keep_listening_to_leader,args=(False,))
             p_leader_listen.start()
-            messages = ['hi-{"192.168.188.32": 2}','fine-{"192.168.188.32": 1}']
+            messages = ['hi1-{"192.168.1.110": 1}','hi3-{"192.168.1.110": 3}','hi2-{"192.168.1.110": 2}']
             '''
             message_to_send = input("Give your input:")
             if message_to_send == "!exit":
@@ -173,8 +173,10 @@ class Client():
                 if data == b'sent':
                     print("Your message was",data)
                     self.increment_other_clients_vc()
+                    self.save_vector_clock()
                 elif data == False:
                     self.decrement_vector_clock()
+                    self.save_vector_clock()
                     print('Probably message didnt go through please resend!')
                     continue
                 elif data == b'resend':
@@ -184,9 +186,11 @@ class Client():
                     if data == b'sent':
                         print("Your message was",data)
                         self.increment_other_clients_vc()
+                        self.save_vector_clock()
                     elif data == b'resend':
                         print("Please ",data)
                         self.decrement_vector_clock()
+                        self.save_vector_clock()
 
 
     def chatroom_output(self):
@@ -294,7 +298,7 @@ class Client():
             self.chatroom_output()
         elif selection == '2':
             client_id = input("Give Your ID:")
-            self.chatroom_inputHB()
+            self.chatroom_input()
 
 
     def broadcast(self,ip, port, broadcast_message,broadcast_socket):
