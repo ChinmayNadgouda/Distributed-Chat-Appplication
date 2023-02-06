@@ -47,7 +47,7 @@ class Client():
     def check_if_new_client(self, rcvd_vc,cl_ip):
         for cl_ip, value in rcvd_vc.items():
             if cl_ip not in self.vector_clock:
-                self.vector_clock[cl_ip] = 0
+                self.vector_clock[cl_ip] = value
 
     def init_own_vector(self):
         if local_ip not in self.vector_clock:
@@ -172,7 +172,7 @@ class Client():
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
                         continue
 
-                    elif(self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip] ):
+                    elif(self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip] ) or (self.vector_clock[cl_ip]  == self.rcvd_vc[cl_ip] ) :
                         print("here")
                         self.increment_vector_clock()
                         self.update_vector_clock(self.rcvd_vc,cl_ip)
