@@ -65,9 +65,11 @@ class Client():
 
     def init_vector_clock(self):
         self.load_vector_clock()
-        for ip in self.vector_clock:
-            self.vector_clock[ip] = 0
+        self.vector_clock = self.vector_clock.fromkeys(self.vector_clock, 0)
+        # for ip in self.vector_clock:
+        #     self.vector_clock[ip] = 0
         self.save_vector_clock()
+
     def hold_back_processing(self):
         try:
             while True:
@@ -85,9 +87,12 @@ class Client():
                         self.increment_vector_clock()
                         self.update_vector_clock(rcvd_vc_data)
                         self.save_vector_clock()
-                        print(message)
+                        print("[OUT from holdback queue]",message)
+                        print("The vector clock",self.vector_clock)
+
                     else:
                         self.holdback_q.put_nowait([message,rcvd_vc_data,cl_ip])
+
         except RecursionError:
             self.hold_back_processing()
 
@@ -124,9 +129,10 @@ class Client():
 
 
     def chatroom_output(self):
+
         self.init_vector_clock()
+
         #send_message(self.server_ip, inport,"client_id"+",join,"+str(inport)+","+"join")
-        self.vector_clock == 0
         try:
             while True:
                 p_leader_listen = threading.Thread(target=client.keep_listening_to_leader,args=(True,))
@@ -154,9 +160,10 @@ class Client():
                     if(self.vector_clock == self.rcvd_vc) and cl_ip != local_ip:
                         break;
 
-
                     if(self.vector_clock == self.rcvd_vc) and cl_ip == local_ip:
                         print("[OUT]",message)
+                        print("The vector clock",self.vector_clock)
+                        self.send_message(self.server_ip, self.server_outport,"client_id"+",recvd,"+str(self.server_inport))
                         continue
 
                     elif(self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip]):
@@ -165,7 +172,9 @@ class Client():
                         self.update_vector_clock(self.rcvd_vc,cl_ip)
                         self.save_vector_clock()
 
-                        self.delivery_q.put_nowait(message)
+                        print("[OUT]",message)
+                        print("The vector clock",self.vector_clock)
+                        self.send_message(self.server_ip, self.server_outport,"client_id"+",recvd,"+str(self.server_inport))
 
                     else:
                         print("here2")
@@ -174,19 +183,8 @@ class Client():
                         self.save_vector_clock()
 
                         self.holdback_q.put_nowait([message, self.rcvd_vc,cl_ip])
-                        
-                    if self.delivery_q.empty():
-                        continue
-                    message_to_be_sent = self.delivery_q.get_nowait()
-
-                    if (message_to_be_sent != None):
-
                         self.send_message(self.server_ip, self.server_outport,"client_id"+",recvd,"+str(self.server_inport))
-                        #data_ack2 = recieve_message()
-                        #if data_ack2 == b'sent':
-                        #print(data)
-                        print(self.vector_clock)
-                        print("[OUT]",message_to_be_sent)
+
         except Exception as e:
             print("Queue exception",e)
 
