@@ -16,7 +16,7 @@ BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
 bufferSize  = 1024
 #get own IP
 MY_HOST = socket.gethostname()
-MY_IP = "192.168.43.205"#socket.gethostbyname(MY_HOST)
+MY_IP = "192.168.43.236"#socket.gethostbyname(MY_HOST)
 local_ip = MY_IP
 client_inport = 5566
 client_outport = 5565
@@ -47,7 +47,7 @@ class Client():
     def check_if_new_client(self, rcvd_vc,cl_ip):
         for cl_ip, value in rcvd_vc.items():
             if cl_ip not in self.vector_clock:
-                self.vector_clock[cl_ip] = 0
+                self.vector_clock[cl_ip] = value
 
     def init_own_vector(self):
         if local_ip not in self.vector_clock:
@@ -68,6 +68,10 @@ class Client():
         with open("vector_clock.json", "r") as file:
             self.vector_clock = json.load(file)
 
+    def increment_other_clients_vc(self):
+        for ip,value in self.vector_clock:
+            if ip != local_ip:
+                self.vector_clock[ip] += 1
 
     def init_vector_clock(self):
         self.load_vector_clock()
@@ -127,6 +131,7 @@ class Client():
                 data = self.recieve_message(client_inport)
                 if data == b'sent':
                     print("[IN]",data)
+                    self.increment_other_clients_vc()
                 elif data == False:
                     continue
                 else:
@@ -164,7 +169,7 @@ class Client():
                     #if rcvd vector === our vector means message is duplicate and discard
                     #but if rcvd vector === our vector and cl_ip is our own ip print it and continue
                     if(self.vector_clock == self.rcvd_vc) and cl_ip != local_ip:
-                        break;
+                        continue;
 
                     if(self.vector_clock == self.rcvd_vc) and cl_ip == local_ip:
                         print("[OUT]",message)
@@ -172,7 +177,7 @@ class Client():
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
                         continue
 
-                    elif(self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip] ):
+                    elif(self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip] ) or (self.vector_clock[cl_ip] == self.rcvd_vc[cl_ip] ):
                         print("here")
                         self.increment_vector_clock()
                         self.update_vector_clock(self.rcvd_vc,cl_ip)
@@ -181,7 +186,7 @@ class Client():
                         print("[OUT]",message)
                         print("The vector clock",self.vector_clock)
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
-
+                        
                     else:
                         print("here2")
                         self.increment_vector_clock()
