@@ -127,6 +127,7 @@ class Server():
         while True:
             try:
                 if self.is_leader == False:
+                    UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
                     return
                 UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
                 UDPServerSocket.bind((localIP, localPort))
