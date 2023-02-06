@@ -227,6 +227,7 @@ class Client():
                     if(self.vector_clock == self.rcvd_vc) and cl_ip == local_ip:
                         print("[OUT]",message)
                         print("The vector clock is",self.vector_clock)
+                        time.sleep(1)
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
                         continue
 
@@ -238,6 +239,7 @@ class Client():
 
                         print("[OUT]",message)
                         print("The vector clock is",self.vector_clock)
+                        time.sleep(1)
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
                         
                     else:
@@ -247,6 +249,7 @@ class Client():
                         self.save_vector_clock()
 
                         self.holdback_q.put_nowait([message, self.rcvd_vc,cl_ip])
+                        time.sleep(1)
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
 
         except Exception as e:
