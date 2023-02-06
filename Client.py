@@ -47,7 +47,12 @@ class Client():
     def check_if_new_client(self, rcvd_vc,cl_ip):
         for cl_ip, value in rcvd_vc.items():
             if cl_ip not in self.vector_clock:
-                self.vector_clock[cl_ip] = value
+                self.vector_clock[cl_ip] = 0
+
+    def init_own_vector(self):
+        if local_ip not in self.vector_clock:
+            self.vector_clock[local_ip] = 0
+        self.save_vector_clock()
 
     def increment_vector_clock(self):
         if local_ip not in self.vector_clock:
@@ -62,6 +67,7 @@ class Client():
     def load_vector_clock(self):
         with open("vector_clock.json", "r") as file:
             self.vector_clock = json.load(file)
+
 
     def init_vector_clock(self):
         self.load_vector_clock()
@@ -108,6 +114,7 @@ class Client():
                 return True
             else:
                 # Directly increment vc, save the vector clock in a file and send it with the message.
+                self.load_vector_clock()
                 self.increment_vector_clock()
                 self.save_vector_clock()  
                 f= open('vector_clock.json', 'r')
@@ -116,21 +123,19 @@ class Client():
                 print("vector clock data pushed is\n", vc_data)
             
             #for message in messages:
-                self.send_message(self.server_ip, self.server_inport, "client_id"+",send_msg,"+"chatroom_id"+","+message_to_send+","+vc_data)
+                self.send_message(self.server_ip, self.server_inport, "client_id"+"-send_msg-"+"chatroom_id"+"-"+message_to_send+"-"+vc_data)
                 data = self.recieve_message(client_inport)
                 if data == b'sent':
                     print("[IN]",data)
                 elif data == False:
                     continue
                 else:
-                    self.send_message(self.server_ip, self.server_inport, "client_id" + ",send_msg," + "chatroom_id" + ","+message_to_send+","+vc_data)
+                    self.send_message(self.server_ip, self.server_inport, "client_id" + "-send_msg-" + "chatroom_id" + "-"+message_to_send+"-"+vc_data)
                     data = self.recieve_message(client_outport)
                     print("[IN]",data)
 
 
     def chatroom_output(self):
-
-        self.init_vector_clock()
 
         #send_message(self.server_ip, inport,"client_id"+",join,"+str(inport)+","+"join")
         try:
@@ -140,9 +145,9 @@ class Client():
                 data = self.recieve_message(client_outport)
                 print('Listening to server',self.server_ip)
                 print("first recv",data)
-                print(self.vector_clock)
+               
                 if data:
-                    rcvd_msg = data.decode().split(",")
+                    rcvd_msg = data.decode().split("-")
 
                     message = rcvd_msg[0]
                     rcvd_vc_data = rcvd_msg[1]
@@ -154,7 +159,8 @@ class Client():
                     self.check_if_new_client(self.rcvd_vc,cl_ip)
 
                     # handle the delivery and hbq continously.
-                    
+                    print("OWN",self.vector_clock)
+                    print("RCVD",self.rcvd_vc)
                     #if rcvd vector === our vector means message is duplicate and discard
                     #but if rcvd vector === our vector and cl_ip is our own ip print it and continue
                     if(self.vector_clock == self.rcvd_vc) and cl_ip != local_ip:
@@ -163,10 +169,10 @@ class Client():
                     if(self.vector_clock == self.rcvd_vc) and cl_ip == local_ip:
                         print("[OUT]",message)
                         print("The vector clock",self.vector_clock)
-                        self.send_message(self.server_ip, self.server_outport,"client_id"+",recvd,"+str(self.server_inport))
+                        self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
                         continue
 
-                    elif(self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip]):
+                    elif(self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip] ):
                         print("here")
                         self.increment_vector_clock()
                         self.update_vector_clock(self.rcvd_vc,cl_ip)
@@ -174,7 +180,7 @@ class Client():
 
                         print("[OUT]",message)
                         print("The vector clock",self.vector_clock)
-                        self.send_message(self.server_ip, self.server_outport,"client_id"+",recvd,"+str(self.server_inport))
+                        self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
 
                     else:
                         print("here2")
@@ -183,7 +189,7 @@ class Client():
                         self.save_vector_clock()
 
                         self.holdback_q.put_nowait([message, self.rcvd_vc,cl_ip])
-                        self.send_message(self.server_ip, self.server_outport,"client_id"+",recvd,"+str(self.server_inport))
+                        self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
 
         except Exception as e:
             print("Queue exception",e)
@@ -197,7 +203,7 @@ class Client():
 
             # Send data
             print("SENDING THIS",message_to_b_sent)
-            client_socket.sendto(str.encode(message_to_b_sent+","+str(client_outport)+","+str(client_inport)), (s_address, s_port))  #not needed
+            client_socket.sendto(str.encode(message_to_b_sent+"-"+str(client_outport)+"-"+str(client_inport)), (s_address, s_port))  #not needed
             print('Sent to server {}:{}:  {}'.format( s_address,s_port,message_to_b_sent))
         finally:
             client_socket.close()
@@ -327,6 +333,9 @@ if __name__ == '__main__':
     #Input User Information
     userName = input('Enter UserName ')
     client.server_ip,client.server_inport,client.server_outport = client.login(userName)
+    client.init_own_vector()
+    client.init_vector_clock()
+
     while True:
         
         p_chat = threading.Thread(target=client.after_login, args=())

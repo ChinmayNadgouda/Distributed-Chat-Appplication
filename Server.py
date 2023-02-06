@@ -650,7 +650,7 @@ class Server():
         # get the value returned from the thread
         ack_thread = thread.value
         if ack_thread:
-            ackkkk = ack_thread[1].split(b',')
+            ackkkk = ack_thread[1].split(b'-')
             if ackkkk[1] == b'recvd':
                 self.ack_counter[from_client_ip][chatroom_inport] = self.ack_counter[from_client_ip][chatroom_inport] + 1
         else:
@@ -661,7 +661,7 @@ class Server():
 
     def parse_client_message(self, client_recv_data):
         # print(client_recv_data)
-        data_list = client_recv_data.split(",")
+        data_list = client_recv_data.split("-")
         # print(data_list)
         client_id = data_list[0]
         client_req = data_list[1]
