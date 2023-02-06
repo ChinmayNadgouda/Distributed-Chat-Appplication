@@ -285,13 +285,14 @@ class Client():
         print('Select a server id  and corresponding chatroom id (inport) to get into a chatroom: ', server_list)
         selected_server = input("Give the server ip:  ")
         selected_chatroom = input("Give the chatroom id (inport):  ")
-        for chatrooms in server_list[int(selected_server)]['chatrooms_handled']:
-            if chatrooms['inPorts'][0] == int(selected_chatroom):
-                print("Configuring the chatroom")
-                inport = chatrooms['inPorts']
-                outport = chatrooms['outPorts']
-                self.server_ip = server_list[int(selected_server)]['IP']
-
+        for server in server_list:
+            if int(selected_server) == server['serverID']:
+                for chatrooms in server['chatrooms_handled']:
+                    if chatrooms['inPorts'][0] == int(selected_chatroom):
+                        print("Configuring the chatroom")
+                        inport = chatrooms['inPorts']
+                        outport = chatrooms['outPorts']
+                        self.server_ip = server['IP']
         # server_ip = data.decode()
         # print("Communicate with server: " + server_ip)
         #later loop inports and outpots to select which chatroom

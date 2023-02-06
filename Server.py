@@ -57,7 +57,7 @@ class CustomThread(Thread):
         # sleep(1)
         # store data in an instance variable
         serve2 = Server()
-        self.value = serve2.read_client(self.localPort_out,False, True, False)
+        self.value = serve2.read_client(self.localPort_out, True,False, False)
 
 
 
@@ -591,7 +591,7 @@ class Server():
                 if heatbeat_server:
                     UDPServerSocket.settimeout(45)
                 if chatroom_timeout:
-                    UDPServerSocket.settimeout(5)
+                    UDPServerSocket.settimeout(15)
                 UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 #UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
