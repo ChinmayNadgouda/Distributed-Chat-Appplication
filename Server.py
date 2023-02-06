@@ -143,6 +143,7 @@ class Server():
                 #send answer
                 print("Send groupview to " + newUser['IP'])
                 send_group_view_to_client = pickle.dumps(self.group_view)
+                time.sleep(1)
                 self.send_Message(newUser['IP'], send_group_view_to_client)
 
                 ##client selection reply
@@ -168,6 +169,7 @@ class Server():
                 #for val in set(self.group_view[1]['chatrooms_handled'][0]['clients_handled']):
                     #print('test client sets',type(json.loads(val)))
                 self.sendto_allServers(server, message, 5044)  #all servers will get this and update their groupview and set clients
+                time.sleep(1)
                 self.send_Message(userSelection['IP'], b"please now connect to the server assigned and chatroom")
                 #await chatID from Client
 
