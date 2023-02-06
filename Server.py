@@ -65,7 +65,7 @@ class Server():
 
     #to determine if the leader has been elected
     is_leader = False
-    me_leader = False # not necessary
+
     #ip/id of the leader selected
     leader = ""
     #ip of the server itself
@@ -73,29 +73,27 @@ class Server():
     #server id
     server_id = ""
     leader_id = ""
+
     #Unique Identifier
     my_uid = str(uuid.uuid1())
+
     #ip and id of each server in the group
     group_view = [] #ServerID, IP, inPorts, outPorts
     #ip of clients assigned to the server
     ack_counter = {}
-    clients_handled = []  # {"192.168.188.22:5553":"192.168.188.29,192.168.188.22","192.168.188.28:6663":False,"192.168.188.29:7773":False}
-    # ip of the whole server group, is a set {"127.0.0.1:1232:0"}  "ip_addr:port:heartbeatmisscount"
-    ################"IP:heartbeatport:chatin:chatout"
+    
     #list of all clients and Servers who handles them
     client_list = [] # IP, userName, chatID
     #chatroom ids handled by a server
     chatrooms_handled = []
+
     #list of only IPs for all Servers
     server_list = []
+
+    #list to store count of missed heartbeats
     server_heatbeat_list = {}
-    previous_message = ""
-    my_chatrooms = []  # ["5553,5554"] when replica ["5553,5554","5557,5558"]
-    #UDPServerSocket = None
-    #clientSocket = None
-    #broadcast_socket = None
-    #LeaderServerSocket = None
-    #ringSocket = None
+
+
     leader_for_first_time = True
 
 
@@ -108,7 +106,7 @@ class Server():
         print(localIP)
         while True:
             data, server = socket.recvfrom(1024)
-            print(data)
+            #print(data)
             if data:
                 # userInformation = data.decode().split(',')
                 # print(userInformation)
@@ -438,7 +436,7 @@ class Server():
         else:
             return None
     def heart_beat_recving(self):
-        print('Leisten to leader HB ',)
+        print('Listen to leader HB ',)
         leader_heartbeat = self.read_client(4444,False,heartbeat_leader=False,heatbeat_server=True)    #fix this port to own heartbeat port
         print("LEADER_HB_ RCCVD",leader_heartbeat)
         if leader_heartbeat:
@@ -483,7 +481,7 @@ class Server():
             server_ip = server['IP']
             server_port = server['heartbeat_port']
             if self.leader_for_first_time:
-                print('SET TO ZERO 1')
+                #print('SET TO ZERO 1')
                 self.server_heatbeat_list[server_ip] = 0
                 self.leader_for_first_time = False
             #print('BEFORE',self.group_view)
@@ -502,17 +500,17 @@ class Server():
                 print(self.server_heatbeat_list)
                 if self.is_leader == False: 
                     return True
-                print("SERVER HB RCVD",listen_heartbeat)
+                #print("SERVER HB RCVD",listen_heartbeat)
                 if listen_heartbeat:
                     if listen_heartbeat[1] == b'heartbeat_recvd':
                         print("Server {} is alive:".format(listen_heartbeat[0][0]))
-                        print('SET TO ZERO 2')
+                        #print('SET TO ZERO 2')
                         self.server_heatbeat_list[listen_heartbeat[0][0]] = 0      #later make this ip
                 else:
                     if self.server_heatbeat_list[server_ip] > 3:   #later make this ip and change to 3 tries i.e 2
                         print("Server {} {} is dead:".format(server_ip,server_id))
                         #print("Update Group view and Replicate its clients to new server, choose a new server all this at next heartbeat")
-                        print('SET TO ZERO 3')
+                        #print('SET TO ZERO 3')
                         self.server_heatbeat_list[server_ip] = 0   #later make this ip
                         #inform all other servers
                         new_group_view = []
@@ -528,7 +526,7 @@ class Server():
                         self.group_view = new_group_view
                         min_cli = 10000
                         clients_transfered = False
-                        print('SERVER DEAD GV',self.group_view)
+                        #print('SERVER DEAD, Updated group view: ',self.group_view)
                         for servers in self.group_view:
                             for chatrooms in servers['chatrooms_handled']:
                                 min_cli = min(len(chatrooms['clients_handled']),min_cli)
@@ -569,13 +567,13 @@ class Server():
                 is_leader = self.heart_beating()    #should this start new thread
                 if is_leader:
                     #self.leader_for_first_time = True
-                    print('Not leader anymore 2')
+                    print('Not leader anymore')
                     return True
             else:
                 is_leader = self.heart_beat_recving()
-                print("HB MECHA:",is_leader,self.group_view)
+                #print("HB MECHA:",is_leader,self.group_view)
                 for server in self.group_view:
-                    print('sseeting 0 hereeee')
+                    #print('sseeting 0 hereeee')
                     self.server_heatbeat_list[server['IP']] = 0
                 if is_leader:
                     #self.leader_for_first_time = True
@@ -591,7 +589,7 @@ class Server():
                 if heatbeat_server:
                     UDPServerSocket.settimeout(45)
                 if chatroom_timeout:
-                    UDPServerSocket.settimeout(15)
+                    UDPServerSocket.settimeout(35)
                 UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 #UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
@@ -716,10 +714,11 @@ class Server():
                 p_chat.join()
     def write_to_chatroom(self,chatrooms,chatroom_inport,chatroom_outport):
         while True:
-            print("Now in chatroom : ",chatroom_inport)
+            
             bytesAddressPair = self.read_client(chatroom_inport,True)  # localPort_in for each chatroom
             if bytesAddressPair == False:
                 return
+            print("Now in chatroom : ",chatroom_inport)
             print("Message in chatroom {} from {}".format(chatroom_inport,bytesAddressPair))
             message_from_client = bytesAddressPair[1].decode('utf-8')
 
@@ -733,7 +732,7 @@ class Server():
             self.ack_counter[from_client_ip] = {}
             self.ack_counter[from_client_ip][chatroom_inport] = 0
             print("ACKcount_b2", self.ack_counter[from_client_ip][chatroom_inport])
-            print('TEST, ',self.chatrooms_handled)
+            #print('TEST, ',self.chatrooms_handled)
             for chatroom in self.chatrooms_handled:
                 if int(chatroom['inPorts'][0]) == int(chatroom_inport):
                     number_of_clients = len(chatroom['clients_handled'])
@@ -774,7 +773,7 @@ def heartbeats():
 
             listen_heartbeat = async_result.get()
             if listen_heartbeat:
-                print('here af')
+                #print('here af')
                 return
             # p_heart = threading.Thread(target=s.heartbeat_mechanism, args=())
             # p_heart.start()
@@ -788,7 +787,7 @@ def heartbeats():
 
             listen_heartbeat = async_result.get()
             if listen_heartbeat:
-                print('here')
+                #print('here')
                 return
             # p_heart_s = threading.Thread(target=s.heartbeat_mechanism, args=())
             # p_heart_s.start()

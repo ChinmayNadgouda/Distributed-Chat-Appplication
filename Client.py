@@ -4,19 +4,13 @@ import multiprocessing
 import os
 from queue import Queue
 import json
-#from broadcastsender import broadcast
-#from subprocess import run
-
-#broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  #changed_remove
-#client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  #changed_remove
+from dynamic_ip import get_local_ip_and_broadcast
 import threading
 
-BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
+MY_IP, BROADCAST_IP     = get_local_ip_and_broadcast()
 
 bufferSize  = 1024
-#get own IP
-MY_HOST = socket.gethostname()
-MY_IP = "192.168.43.205"#socket.gethostbyname(MY_HOST)
+
 local_ip = MY_IP
 client_inport = 5566
 client_outport = 5565
@@ -31,7 +25,7 @@ class Client():
     vector_clock = {}
     rcvd_vc = {}
     holdback_q = Queue()
-    delivery_q = Queue()
+    #delivery_q = Queue()
 
     def __init__(self):
         pass
@@ -60,7 +54,11 @@ class Client():
             self.vector_clock[local_ip] = 0
 
         self.vector_clock[local_ip] += 1   
+    def decrement_vector_clock(self):
+        if local_ip not in self.vector_clock:
+            self.vector_clock[local_ip] = 0
 
+        self.vector_clock[local_ip] -= 1   
     def save_vector_clock(self):
         with open("vector_clock.json", "w") as file:
             json.dump(self.vector_clock, file)
@@ -99,7 +97,7 @@ class Client():
                         self.update_vector_clock(rcvd_vc_data)
                         self.save_vector_clock()
                         print("[OUT from holdback queue]",message)
-                        print("The vector clock",self.vector_clock)
+                        print("The vector clock is",self.vector_clock)
 
                     else:
                         self.holdback_q.put_nowait([message,rcvd_vc_data,cl_ip])
@@ -129,16 +127,23 @@ class Client():
             
             #for message in messages:
                 self.send_message(self.server_ip, self.server_inport, "client_id"+"-send_msg-"+"chatroom_id"+"-"+message_to_send+"-"+vc_data)
-                data = self.recieve_message(client_inport)
+                data = self.recieve_message(client_inport,True)
                 if data == b'sent':
-                    print("[IN]",data)
+                    print("Your message was",data)
                     self.increment_other_clients_vc()
                 elif data == False:
+                    self.decrement_vector_clock()
+                    print('Probably message didnt go through please resend!')
                     continue
-                else:
+                elif data == b'resend':
                     self.send_message(self.server_ip, self.server_inport, "client_id" + "-send_msg-" + "chatroom_id" + "-"+message_to_send+"-"+vc_data)
-                    data = self.recieve_message(client_outport)
-                    print("[IN]",data)
+                    data = self.recieve_message(client_outport,True)
+                    if data == b'sent':
+                        print("Your message was",data)
+                        self.increment_other_clients_vc()
+                    elif data == b'resend':
+                        print("Please ",data)
+                        self.decrement_vector_clock()
 
 
     def chatroom_output(self):
@@ -150,7 +155,7 @@ class Client():
                 p_leader_listen.start()
                 data = self.recieve_message(client_outport)
                 print('Listening to server',self.server_ip)
-                print("first recv",data)
+                #print("first recv",data)
                
                 if data:
                     rcvd_msg = data.decode().split("-")
@@ -158,7 +163,7 @@ class Client():
                     message = rcvd_msg[0]
                     rcvd_vc_data = rcvd_msg[1]
                     cl_ip = rcvd_msg[2]
-                    print(cl_ip)
+                    #print(cl_ip)
                     self.rcvd_vc = json.loads(rcvd_vc_data)
                     self.load_vector_clock()
 
@@ -174,18 +179,18 @@ class Client():
 
                     if(self.vector_clock == self.rcvd_vc) and cl_ip == local_ip:
                         print("[OUT]",message)
-                        print("The vector clock",self.vector_clock)
+                        print("The vector clock is",self.vector_clock)
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
                         continue
 
                     elif(self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip] ) or (self.vector_clock[cl_ip] == self.rcvd_vc[cl_ip] ):
-                        print("here")
+                        #print("here")
                         self.increment_vector_clock()
                         self.update_vector_clock(self.rcvd_vc,cl_ip)
                         self.save_vector_clock()
 
                         print("[OUT]",message)
-                        print("The vector clock",self.vector_clock)
+                        print("The vector clock is",self.vector_clock)
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
                         
                     else:
@@ -208,20 +213,23 @@ class Client():
             # # message = run("python q2.py",capture_output=True)
 
             # Send data
-            print("SENDING THIS",message_to_b_sent)
+            #print("SENDING THIS",message_to_b_sent)
             client_socket.sendto(str.encode(message_to_b_sent+"-"+str(client_outport)+"-"+str(client_inport)), (s_address, s_port))  #not needed
             print('Sent to server {}:{}:  {}'.format( s_address,s_port,message_to_b_sent))
         finally:
             client_socket.close()
             #print('Socket closed')
 
-    def recieve_message(self,port=5565):
+    def recieve_message(self,port=5565,ackk=False):
         try:
             # Receive response and set timeout for every 5 sec
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             #client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
             client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            client_socket.settimeout(5)
+            if ackk:
+                client_socket.settimeout(20)
+            else:
+                client_socket.settimeout(5)
             client_socket.bind((local_ip,port))
             #print('Waiting for response...')
             data, server = client_socket.recvfrom(1024)
@@ -261,7 +269,7 @@ class Client():
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             client_socket.bind((MY_IP, 10002))       #willl need another socket and port
-            print('always Waiting for response...')
+            #print('always Waiting for response...')
             data, server = client_socket.recvfrom(bufferSize)
             #got new server
             client_socket.close()
@@ -271,7 +279,7 @@ class Client():
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             client_socket.bind((MY_IP, 10003))       #willl need another socket and port
-            print('always Waiting for response...')
+            #print('always Waiting for response...')
             data, server = client_socket.recvfrom(bufferSize)
             #got new server
             client_socket.close()
@@ -290,7 +298,7 @@ class Client():
         client_socket.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
         client_socket.bind((MY_IP, 5000))
 
-        print('Waiting for response...')
+        print('Waiting for response...')    #should this have a timeout
         data, server = client_socket.recvfrom(bufferSize)
         client_socket.close()
         server_list = pickle.loads(data)
@@ -321,7 +329,7 @@ class Client():
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         client_socket.bind((MY_IP, 5000))
 
-        print('Waiting for response...')
+        print('Waiting for response...')  #should this have a timeout
         data, server = client_socket.recvfrom(bufferSize)
         client_socket.close()
         print(data)
