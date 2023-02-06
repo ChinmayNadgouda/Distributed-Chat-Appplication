@@ -1,7 +1,7 @@
 import pickle
 import socket
 import multiprocessing
-import os
+import time
 from queue import Queue
 import json
 from dynamic_ip import get_local_ip_and_broadcast
@@ -104,7 +104,49 @@ class Client():
 
         except RecursionError:
             self.hold_back_processing()
-
+        except Exception as e:
+            print('exc ihere', e)
+    def chatroom_inputHB(self):
+        while(True):
+            p_leader_listen = threading.Thread(target=client.keep_listening_to_leader,args=(False,))
+            p_leader_listen.start()
+            messages = ['hi-{"192.168.188.32": 2}','fine-{"192.168.188.32": 1}']
+            '''
+            message_to_send = input("Give your input:")
+            if message_to_send == "!exit":
+                # send_message() extting
+                return True
+            else:
+                # Directly increment vc, save the vector clock in a file and send it with the message.
+                self.load_vector_clock()
+                self.increment_vector_clock()
+                self.save_vector_clock()  
+                f= open('vector_clock.json', 'r')
+                vc_data = f.read()
+                f.close()
+                print("vector clock data pushed is\n", vc_data)
+            '''
+            for message in messages:
+                self.send_message(self.server_ip, self.server_inport, "client_id"+"-send_msg-"+"chatroom_id"+"-"+message)
+                data = self.recieve_message(client_inport,True)
+                if data == b'sent':
+                    print("Your message was",data)
+                    #self.increment_other_clients_vc()
+                elif data == False:
+                    #self.decrement_vector_clock()
+                    print('Probably message didnt go through please resend!')
+                    continue
+                elif data == b'resend':
+                    time.sleep(1)
+                    self.send_message(self.server_ip, self.server_inport, "client_id" + "-send_msg-" + "chatroom_id" + "-"+message)
+                    data = self.recieve_message(client_outport,True)
+                    if data == b'sent':
+                        print("Your message was",data)
+                        #self.increment_other_clients_vc()
+                    elif data == b'resend':
+                        print("Please ",data)
+                        #self.decrement_vector_clock()
+                time.sleep(2)
     def chatroom_input(self):
         while(True):
             p_leader_listen = threading.Thread(target=client.keep_listening_to_leader,args=(False,))
@@ -136,6 +178,7 @@ class Client():
                     print('Probably message didnt go through please resend!')
                     continue
                 elif data == b'resend':
+                    time.sleep(1)
                     self.send_message(self.server_ip, self.server_inport, "client_id" + "-send_msg-" + "chatroom_id" + "-"+message_to_send+"-"+vc_data)
                     data = self.recieve_message(client_outport,True)
                     if data == b'sent':
@@ -154,8 +197,8 @@ class Client():
                 p_leader_listen = threading.Thread(target=client.keep_listening_to_leader,args=(True,))
                 p_leader_listen.start()
                 data = self.recieve_message(client_outport)
-                print('Listening to server',self.server_ip)
-                #print("first recv",data)
+                #print('Listening to server',self.server_ip)
+                print("first recv",data)
                
                 if data:
                     rcvd_msg = data.decode().split("-")
@@ -251,7 +294,7 @@ class Client():
             self.chatroom_output()
         elif selection == '2':
             client_id = input("Give Your ID:")
-            self.chatroom_input()
+            self.chatroom_inputHB()
 
 
     def broadcast(self,ip, port, broadcast_message,broadcast_socket):

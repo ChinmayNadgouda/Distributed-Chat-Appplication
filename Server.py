@@ -212,7 +212,7 @@ class Server():
             print("I AM LEADER!")
             self.leader = self.ip_address
             self.is_leader = True
-            self.group_view.append({"serverID": 0, "IP" : self.ip_address, "chatrooms_handled" : [{"inPorts": [5000], "outPorts": [5001], 'clients_handled':[]}],'heartbeat_port':4444})
+            self.group_view.append({"serverID": 0, "IP" : self.ip_address, "chatrooms_handled" : [{"inPorts": [6000], "outPorts": [6001], 'clients_handled':[]}],'heartbeat_port':4444})
             self.server_id = 0
             self.leader_id = 0
         LeaderServerSocket.close()
@@ -589,7 +589,7 @@ class Server():
                 if heatbeat_server:
                     UDPServerSocket.settimeout(45)
                 if chatroom_timeout:
-                    UDPServerSocket.settimeout(35)
+                    UDPServerSocket.settimeout(18)
                 UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 #UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
