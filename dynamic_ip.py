@@ -16,7 +16,7 @@ def get_local_ip_and_broadcast():
 
     while True:
         line = proc.stdout.readline()
-        if ip.encode() in line:
+        if IP.encode() in line:
             line = proc.stdout.readline()
             break
     MASK = line.rstrip().split(b':')[-1].replace(b' ',b'').decode()
@@ -31,4 +31,4 @@ def get_local_ip_and_broadcast():
     print('Host:', ipaddress.IPv4Address(int(host) & int(net.hostmask)))
     print('Broadcast:', net.broadcast_address)
 
-    return IP,net.broadcast_address
+    return str(IP),str(net.broadcast_address)

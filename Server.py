@@ -13,13 +13,12 @@ import pickle
 import multiprocessing
 from multiprocessing.pool import ThreadPool
 import threading
-
+from dynamic_ip import get_local_ip_and_broadcast
 import uuid
 
 MY_HOST = socket.gethostname()
-localIP     = "192.168.43.205"#socket.gethostbyname(MY_HOST) 
+localIP, BROADCAST_IP     = get_local_ip_and_broadcast()
 
-BROADCAST_IP = "192.168.43.255" #needs to be reconfigured depending on network
 
 localPort   = 10001      #broadcast servers
 
