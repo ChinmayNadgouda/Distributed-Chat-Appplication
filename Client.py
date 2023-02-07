@@ -107,7 +107,7 @@ class Client():
         except Exception as e:
             print('exc ihere', e)
     def chatroom_inputHB(self):
-        while(True):
+        #while(True):
             p_leader_listen = threading.Thread(target=client.keep_listening_to_leader,args=(False,))
             p_leader_listen.start()
             messages = ['hi1-{"192.168.1.110": 1}','hi3-{"192.168.1.110": 3}','hi2-{"192.168.1.110": 2}']
