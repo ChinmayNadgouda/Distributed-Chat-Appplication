@@ -161,10 +161,10 @@ class Client():
                 # Directly increment vc, save the vector clock in a file and send it with the message.
                 self.load_vector_clock()
                 self.increment_vector_clock()
-                self.save_vector_clock()  
-                f= open('vector_clock.json', 'r')
-                vc_data = f.read()
-                f.close()
+                #self.save_vector_clock()  
+                #f= open('vector_clock.json', 'r')
+                vc_data = json.dumps(self.vector_clock)
+                #f.close()
                 #print("vector clock data pushed is\n", vc_data)
             
             #for message in messages:
@@ -175,8 +175,8 @@ class Client():
                     self.increment_other_clients_vc()
                     self.save_vector_clock()
                 elif data == False:
-                    self.decrement_vector_clock()
-                    self.save_vector_clock()
+                    #self.decrement_vector_clock()
+                    #self.save_vector_clock()
                     print('Probably message didnt go through please resend!')
                     continue
                 elif data == b'resend':
@@ -189,8 +189,8 @@ class Client():
                         self.save_vector_clock()
                     elif data == b'resend':
                         print("Please ",data)
-                        self.decrement_vector_clock()
-                        self.save_vector_clock()
+                        #self.decrement_vector_clock()
+                        #self.save_vector_clock()
 
 
     def chatroom_output(self):
