@@ -141,8 +141,15 @@ class Server():
 
                 #send answer
                 print("Send groupview to " + newUser['IP'])
-                send_group_view_to_client = pickle.dumps(self.group_view)
                 
+                new_group_view_without_leader = []
+                for server in self.group_view:
+                    if server['IP'] != self.ip_address:
+                        new_group_view_without_leader.append(server)
+                      
+                send_group_view_to_client = pickle.dumps(new_group_view_without_leader)
+                
+                # send_group_view_to_client = pickle.dumps(self.group_view)
                 self.send_Message(newUser['IP'], send_group_view_to_client)
                 
                 ##client selection reply
@@ -678,9 +685,10 @@ class Server():
         chatroom_id = data_list[2]
         client_message = data_list[3]
         vc = data_list[4]
+        userName = data_list[5]
         client_port_out = data_list[-2]
         client_port = data_list[-1]
-        return [client_id, client_req, chatroom_id, client_message,vc, client_port_out, client_port]
+        return [client_id, client_req, chatroom_id, client_message,vc,userName, client_port_out, client_port]
 
     def collect_chatrooms(self):
         try:
@@ -737,7 +745,7 @@ class Server():
             # callvector_check
 
             from_client_ip = bytesAddressPair[0][0]
-            client_id, data, chatroom_id, message, vc,from_port, from_inport = self.parse_client_message(
+            client_id, data, chatroom_id, message, vc,userName,from_port, from_inport = self.parse_client_message(
                 message_from_client)
 
 
@@ -757,7 +765,7 @@ class Server():
                         # if to_client_ip == from_client_ip and to_client_port_ack == from_inport:   #notneeded
                         #     sender_inport = to_client_port_ack
                         thread = threading.Thread(target=self.write_to_client_with_ack,
-                                                args=(message+"-"+vc+"-"+from_client_ip, to_client_ip, to_client_port, from_client_ip,chatroom_inport,chatroom_outport,))
+                                                args=(message+"-"+vc+"-"+from_client_ip+"-"+userName, to_client_ip, to_client_port, from_client_ip,chatroom_inport,chatroom_outport,))
                         thread.start()
                         thread.join()
             print("ACKcount_a", self.ack_counter[from_client_ip][chatroom_inport])

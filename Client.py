@@ -19,7 +19,7 @@ class Client():
     server_inport = 0
     server_outport =  0
     server_ip = ''
-
+    userName = ''
     #To implement the causality.
     #Dictionary to store vector clock.
     vector_clock = {}
@@ -90,17 +90,17 @@ class Client():
                     message = list[0]
                     rcvd_vc_data=list[1]
                     cl_ip = list[2]
-                    
+                    userName = list[3]
                     #check for the message to be next in the sequence.
                     if(self.vector_clock[cl_ip] + 1 == rcvd_vc_data[cl_ip]):     
                         self.increment_vector_clock()
                         self.update_vector_clock(rcvd_vc_data,cl_ip)
                         self.save_vector_clock()
-                        print("[OUT from holdback queue]",message)
+                        print("{}:[OUT from holdback queue]".format(userName),message)
                         #print("The vector clock is",self.vector_clock)
 
                     else:
-                        self.holdback_q.put_nowait([message,rcvd_vc_data,cl_ip])
+                        self.holdback_q.put_nowait([message,rcvd_vc_data,cl_ip,userName])
 
         except RecursionError:
             self.hold_back_processing()
@@ -127,7 +127,7 @@ class Client():
                 print("vector clock data pushed is\n", vc_data)
             '''
             for message in messages:
-                self.send_message(self.server_ip, self.server_inport, "client_id"+"-send_msg-"+"chatroom_id"+"-"+message)
+                self.send_message(self.server_ip, self.server_inport, "client_id"+"-send_msg-"+"chatroom_id"+"-"+message+"-"+self.userName)
                 data = self.recieve_message(client_inport,True)
                 if data == b'sent':
                     print("Your message was",data)
@@ -138,7 +138,7 @@ class Client():
                     continue
                 elif data == b'resend':
                     time.sleep(1)
-                    self.send_message(self.server_ip, self.server_inport, "client_id" + "-send_msg-" + "chatroom_id" + "-"+message)
+                    self.send_message(self.server_ip, self.server_inport, "client_id" + "-send_msg-" + "chatroom_id" + "-"+message+"-"+self.userName)
                     data = self.recieve_message(client_outport,True)
                     if data == b'sent':
                         print("Your message was",data)
@@ -168,7 +168,7 @@ class Client():
                 #print("vector clock data pushed is\n", vc_data)
             
             #for message in messages:
-                self.send_message(self.server_ip, self.server_inport, "client_id"+"-send_msg-"+"chatroom_id"+"-"+message_to_send+"-"+vc_data)
+                self.send_message(self.server_ip, self.server_inport, "client_id"+"-send_msg-"+"chatroom_id"+"-"+message_to_send+"-"+vc_data+"-"+self.userName)
                 data = self.recieve_message(client_inport,True)
                 if data == b'sent':
                     print("Your message was",data)
@@ -181,7 +181,7 @@ class Client():
                     continue
                 elif data == b'resend':
                     time.sleep(1)
-                    self.send_message(self.server_ip, self.server_inport, "client_id" + "-send_msg-" + "chatroom_id" + "-"+message_to_send+"-"+vc_data)
+                    self.send_message(self.server_ip, self.server_inport, "client_id" + "-send_msg-" + "chatroom_id" + "-"+message_to_send+"-"+vc_data+"-"+self.userName)
                     data = self.recieve_message(client_outport,True)
                     if data == b'sent':
                         print("Your message was",data)
@@ -210,6 +210,7 @@ class Client():
                     message = rcvd_msg[0]
                     rcvd_vc_data = rcvd_msg[1]
                     cl_ip = rcvd_msg[2]
+                    userName = rcvd_msg[3]
                     #print(cl_ip)
                     self.rcvd_vc = json.loads(rcvd_vc_data)
                     self.load_vector_clock()
@@ -225,7 +226,7 @@ class Client():
                         continue;
 
                     if(self.vector_clock == self.rcvd_vc) and cl_ip == local_ip:
-                        print("[OUT]",message)
+                        print("{}:[OUT]".format(userName),message)
                         #print("The vector clock is",self.vector_clock)
                         time.sleep(1)
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
@@ -237,7 +238,7 @@ class Client():
                         self.update_vector_clock(self.rcvd_vc,cl_ip)
                         self.save_vector_clock()
 
-                        print("[OUT]",message)
+                        print("{}:[OUT]".format(userName),message)
                         #print("The vector clock is",self.vector_clock)
                         time.sleep(1)
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
@@ -248,7 +249,7 @@ class Client():
                         #self.update_vector_clock(self.rcvd_vc)
                         self.save_vector_clock()
 
-                        self.holdback_q.put_nowait([message, self.rcvd_vc,cl_ip])
+                        self.holdback_q.put_nowait([message, self.rcvd_vc,cl_ip,userName])
                         time.sleep(1)
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
 
@@ -339,6 +340,7 @@ class Client():
         #get the server ip, in port and out port and update current values
     def login(self,userName):
         try:
+            self.userName = userName
             message = MY_IP + ',' + userName
             broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # changed_remove
@@ -354,6 +356,9 @@ class Client():
             data, server = client_socket.recvfrom(bufferSize)
             client_socket.close()
             server_list = pickle.loads(data)
+            if server_list == []:
+                print('No servers available yet, please wait')
+                self.login(userName)
             print('Select a server id  and corresponding chatroom id (inport) to get into a chatroom: ', server_list)
             selected_server = input("Give the server ip:  ")
             selected_chatroom = input("Give the chatroom id (inport):  ")
