@@ -94,7 +94,7 @@ class Client():
                     #check for the message to be next in the sequence.
                     if(self.vector_clock[cl_ip] + 1 == rcvd_vc_data[cl_ip]):     
                         self.increment_vector_clock()
-                        self.update_vector_clock(rcvd_vc_data)
+                        self.update_vector_clock(rcvd_vc_data,cl_ip)
                         self.save_vector_clock()
                         print("[OUT from holdback queue]",message)
                         #print("The vector clock is",self.vector_clock)
