@@ -97,7 +97,7 @@ class Client():
                         self.update_vector_clock(rcvd_vc_data)
                         self.save_vector_clock()
                         print("[OUT from holdback queue]",message)
-                        print("The vector clock is",self.vector_clock)
+                        #print("The vector clock is",self.vector_clock)
 
                     else:
                         self.holdback_q.put_nowait([message,rcvd_vc_data,cl_ip])
@@ -165,7 +165,7 @@ class Client():
                 f= open('vector_clock.json', 'r')
                 vc_data = f.read()
                 f.close()
-                print("vector clock data pushed is\n", vc_data)
+                #print("vector clock data pushed is\n", vc_data)
             
             #for message in messages:
                 self.send_message(self.server_ip, self.server_inport, "client_id"+"-send_msg-"+"chatroom_id"+"-"+message_to_send+"-"+vc_data)
@@ -202,7 +202,7 @@ class Client():
                 p_leader_listen.start()
                 data = self.recieve_message(client_outport)
                 #print('Listening to server',self.server_ip)
-                print("first recv",data)
+                #print("first recv",data)
                
                 if data:
                     rcvd_msg = data.decode().split("-")
@@ -217,8 +217,8 @@ class Client():
                     neww = self.check_if_new_client(self.rcvd_vc,cl_ip)
 
                     # handle the delivery and hbq continously.
-                    print("OWN",self.vector_clock)
-                    print("RCVD",self.rcvd_vc)
+                    #print("OWN",self.vector_clock)
+                    #print("RCVD",self.rcvd_vc)
                     #if rcvd vector === our vector means message is duplicate and discard
                     #but if rcvd vector === our vector and cl_ip is our own ip print it and continue
                     if(self.vector_clock == self.rcvd_vc) and cl_ip != local_ip and not neww:
@@ -226,7 +226,7 @@ class Client():
 
                     if(self.vector_clock == self.rcvd_vc) and cl_ip == local_ip:
                         print("[OUT]",message)
-                        print("The vector clock is",self.vector_clock)
+                        #print("The vector clock is",self.vector_clock)
                         time.sleep(1)
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
                         continue
@@ -238,12 +238,12 @@ class Client():
                         self.save_vector_clock()
 
                         print("[OUT]",message)
-                        print("The vector clock is",self.vector_clock)
+                        #print("The vector clock is",self.vector_clock)
                         time.sleep(1)
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
                         
                     else:
-                        print("here2")
+                        #print("here2")
                         self.increment_vector_clock()
                         #self.update_vector_clock(self.rcvd_vc)
                         self.save_vector_clock()
@@ -265,7 +265,7 @@ class Client():
             # Send data
             #print("SENDING THIS",message_to_b_sent)
             client_socket.sendto(str.encode(message_to_b_sent+"-"+str(client_outport)+"-"+str(client_inport)), (s_address, s_port))  #not needed
-            print('Sent to server {}:{}:  {}'.format( s_address,s_port,message_to_b_sent))
+            #print('Sent to server {}:{}:  {}'.format( s_address,s_port,message_to_b_sent))
         finally:
             client_socket.close()
             #print('Socket closed')
@@ -277,7 +277,7 @@ class Client():
             #client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
             client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             if ackk:
-                client_socket.settimeout(20)
+                client_socket.settimeout(40)
             else:
                 client_socket.settimeout(5)
             client_socket.bind((local_ip,port))

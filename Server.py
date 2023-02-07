@@ -601,7 +601,7 @@ class Server():
                 if heatbeat_server:
                     UDPServerSocket.settimeout(45)
                 if chatroom_timeout:
-                    UDPServerSocket.settimeout(18)
+                    UDPServerSocket.settimeout(40)
                 UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 #UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
