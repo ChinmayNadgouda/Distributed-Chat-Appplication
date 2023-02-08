@@ -116,7 +116,7 @@ class Client():
         #while(True):
             p_leader_listen = threading.Thread(target=client.keep_listening_to_leader,args=(False,))
             p_leader_listen.start()
-            messages = ['hi1-{"192.168.1.110": 1}','hi3-{"192.168.1.110": 3}','hi2-{"192.168.1.110": 2}']
+            messages = ['hi1-{"192.168.188.34": 1}','hi3-{"192.168.188.34": 3}','hi2-{"192.168.188.34": 2}']
             '''
             message_to_send = input("Give your input:")
             if message_to_send == "!exit":
@@ -237,7 +237,11 @@ class Client():
                         time.sleep(1)
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
                         continue
-
+                    elif ((self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip]) and cl_ip == local_ip) or ((self.vector_clock[cl_ip] == self.rcvd_vc[cl_ip]) and cl_ip == local_ip):
+                        print("{}:[OUT]".format(userName),message)
+                        #print("The vector clock is",self.vector_clock)
+                        time.sleep(1)
+                        self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
                     elif(self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip] ) or (self.vector_clock[cl_ip] == self.rcvd_vc[cl_ip] ):
                         print("here")
                         self.increment_vector_clock()
