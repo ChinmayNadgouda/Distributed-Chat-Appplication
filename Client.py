@@ -241,6 +241,8 @@ class Client():
                         print("{}:[OUT]".format(userName),message)
                         #print("The vector clock is",self.vector_clock)
                         time.sleep(1)
+                        self.update_vector_clock(self.rcvd_vc,cl_ip)
+                        self.save_vector_clock()
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
                     elif(self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip] ) or (self.vector_clock[cl_ip] == self.rcvd_vc[cl_ip] ):
                         print("here")
