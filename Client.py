@@ -31,12 +31,16 @@ class Client():
         pass
 
     def update_vector_clock(self, rcvd_vc,cl_ip):
-        for cl_ip, value in rcvd_vc.items():
+        for ip, value in rcvd_vc.items():
             if cl_ip not in self.vector_clock:
+                print('grg')
                 self.vector_clock[cl_ip] = value
             else:
                 #ToDo: Verify the usage!
-                self.vector_clock[cl_ip] = max(self.vector_clock[cl_ip], rcvd_vc[cl_ip]) 
+                print(ip)
+                print(self.vector_clock)
+                self.vector_clock[ip] = max(self.vector_clock[ip], rcvd_vc[ip]) 
+                print(self.vector_clock)
 
     def check_if_new_client(self, rcvd_vc,cl_ip):
         for cl_ip, value in rcvd_vc.items():
@@ -85,6 +89,7 @@ class Client():
                 if self.holdback_q.empty():
                     self.hold_back_processing()
                 else:
+                    time.sleep(5) 
                     self.load_vector_clock()
                     list = self.holdback_q.get_nowait()
                     message = list[0]
@@ -92,7 +97,8 @@ class Client():
                     cl_ip = list[2]
                     userName = list[3]
                     #check for the message to be next in the sequence.
-                    if(self.vector_clock[cl_ip] + 1 == rcvd_vc_data[cl_ip]):     
+                    if(self.vector_clock[cl_ip] + 1 == rcvd_vc_data[cl_ip]):  
+                          
                         self.increment_vector_clock()
                         self.update_vector_clock(rcvd_vc_data,cl_ip)
                         self.save_vector_clock()
@@ -233,18 +239,19 @@ class Client():
                         continue
 
                     elif(self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip] ) or (self.vector_clock[cl_ip] == self.rcvd_vc[cl_ip] ):
-                        #print("here")
+                        print("here")
                         self.increment_vector_clock()
+                        print("The vector clock is",self.vector_clock)
                         self.update_vector_clock(self.rcvd_vc,cl_ip)
                         self.save_vector_clock()
 
                         print("{}:[OUT]".format(userName),message)
-                        #print("The vector clock is",self.vector_clock)
+                        print("The vector clock is",self.vector_clock)
                         time.sleep(1)
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
                         
                     else:
-                        #print("here2")
+                        print("here2")
                         self.increment_vector_clock()
                         #self.update_vector_clock(self.rcvd_vc)
                         self.save_vector_clock()
