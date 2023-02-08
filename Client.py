@@ -33,14 +33,14 @@ class Client():
     def update_vector_clock(self, rcvd_vc,cl_ip):
         for ip, value in rcvd_vc.items():
             if cl_ip not in self.vector_clock:
-                print('grg')
+                #print('grg')
                 self.vector_clock[cl_ip] = value
             else:
                 #ToDo: Verify the usage!
-                print(ip)
-                print(self.vector_clock)
+                #print(ip)
+                #print(self.vector_clock)
                 self.vector_clock[ip] = max(self.vector_clock[ip], rcvd_vc[ip]) 
-                print(self.vector_clock)
+                #print(self.vector_clock)
 
     def check_if_new_client(self, rcvd_vc,cl_ip):
         for cl_ip, value in rcvd_vc.items():
@@ -245,19 +245,19 @@ class Client():
                         self.save_vector_clock()
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
                     elif(self.vector_clock[cl_ip] + 1 == self.rcvd_vc[cl_ip] ) or (self.vector_clock[cl_ip] == self.rcvd_vc[cl_ip] ):
-                        print("here")
+                        #print("here")
                         self.increment_vector_clock()
-                        print("The vector clock is",self.vector_clock)
+                        #print("The vector clock is",self.vector_clock)
                         self.update_vector_clock(self.rcvd_vc,cl_ip)
                         self.save_vector_clock()
 
                         print("{}:[OUT]".format(userName),message)
-                        print("The vector clock is",self.vector_clock)
+                        #print("The vector clock is",self.vector_clock)
                         time.sleep(1)
                         self.send_message(self.server_ip, self.server_outport,"client_id"+"-recvd-"+str(self.server_inport))
                         
                     else:
-                        print("here2")
+                        #print("here2")
                         self.increment_vector_clock()
                         #self.update_vector_clock(self.rcvd_vc)
                         self.save_vector_clock()
