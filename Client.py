@@ -89,7 +89,7 @@ class Client():
                 if self.holdback_q.empty():
                     self.hold_back_processing()
                 else:
-                    time.sleep(5) 
+                    time.sleep(2) 
                     self.load_vector_clock()
                     list = self.holdback_q.get_nowait()
                     message = list[0]
@@ -111,7 +111,7 @@ class Client():
         except RecursionError:
             self.hold_back_processing()
         except Exception as e:
-            print('exc ihere', e)
+            print('exc here', e)
     def chatroom_inputHB(self):
         #while(True):
             p_leader_listen = threading.Thread(target=client.keep_listening_to_leader,args=(False,))
